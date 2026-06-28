@@ -1,0 +1,63 @@
+{
+  "rules": [
+    {
+      "tier": 0,
+      "description": "Always allowed (read-only inspect, formatting, test runners)",
+      "patterns": [
+        "^git status$",
+        "^git diff$",
+        "^git log",
+        "^git show",
+        "^git branch$",
+        "^git remote$",
+        "^npm test$",
+        "^npm run test$",
+        "^vitest",
+        "^eslint",
+        "^prettier"
+      ]
+    },
+    {
+      "tier": 1,
+      "description": "Allowed within workspace scope (writes, local build, lint, commit)",
+      "patterns": [
+        "^git add ",
+        "^git commit",
+        "^npm run build$",
+        "^npm run lint$",
+        "^npm run format$",
+        "^npm run dev$",
+        "^tsup",
+        "^tsc"
+      ]
+    },
+    {
+      "tier": 2,
+      "description": "Requires confirmation (remote sync, installer commands, outbound requests)",
+      "patterns": [
+        "^git push",
+        "^git pull",
+        "^git fetch",
+        "^git clone",
+        "^npm i",
+        "^npm install",
+        "^npm ci",
+        "^curl ",
+        "^wget "
+      ]
+    },
+    {
+      "tier": 3,
+      "description": "Always blocked (destructive, root traversal, process hijacking, piping to shell)",
+      "patterns": [
+        "^rm -rf /$",
+        "^rm -rf /\\s",
+        "\\.\\./\\.\\./",
+        "\\bsudo\\b",
+        "\\|\\s*bash\\b",
+        "\\|\\s*sh\\b"
+      ]
+    }
+  ],
+  "defaultTier": 2
+}
