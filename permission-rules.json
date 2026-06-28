@@ -4,8 +4,8 @@
       "tier": 0,
       "description": "Always allowed (read-only inspect, formatting, test runners)",
       "patterns": [
-        "^git status$",
-        "^git diff$",
+        "^git status\\b",
+        "^git diff\\b",
         "^git log",
         "^git show",
         "^git branch$",
@@ -34,7 +34,9 @@
         "^git init$",
         "^git config\\b",
         "^git checkout\\b",
-        "^git branch\\b"
+        "^git branch\\b",
+        "^git clean\\b",
+        "^git reset\\b"
       ]
     },
     {
