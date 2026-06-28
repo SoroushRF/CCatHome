@@ -27,7 +27,9 @@ describe("Phase 1 Integration Gate (End-to-End)", () => {
     }
     try {
       fs.mkdirSync(TEST_DIR, { recursive: true });
-    } catch (_err) {}
+    } catch (_err) {
+      // Ignore if exists
+    }
 
     // Initialize clean git repository in integration directory
     await runCommandGated("git init");

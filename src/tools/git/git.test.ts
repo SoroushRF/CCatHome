@@ -27,7 +27,9 @@ describe("Git Capabilities Suite", () => {
     }
     try {
       fs.mkdirSync(TEST_DIR, { recursive: true });
-    } catch (_err) {}
+    } catch (_err) {
+      // Ignore if exists
+    }
 
     // Initialize temporary git repo in the test directory
     await runCommandGated("git init");

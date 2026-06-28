@@ -20,7 +20,7 @@ export async function runCommandGated(command: string): Promise<GatedRunResult> 
     );
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     child_process.exec(
       command,
       {

@@ -81,7 +81,6 @@ export async function runCommandHandler(args: {
 
   const stdoutLines: string[] = [];
   const stderrLines: string[] = [];
-  let exitCode: number | null = null;
   let didExit = false;
 
   child.stdout.on("data", (data) => {
@@ -111,7 +110,6 @@ export async function runCommandHandler(args: {
     };
 
     child.on("exit", (code) => {
-      exitCode = code;
       didExit = true;
       cleanup();
 

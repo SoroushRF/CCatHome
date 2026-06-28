@@ -130,7 +130,11 @@ export async function applyPatchHandler(args: {
     fs.writeFileSync(tempFilePath, patchedContent, "utf-8");
   } catch (err: any) {
     // Clean up temp file just in case
-    try { fs.unlinkSync(tempFilePath); } catch (_e) {}
+    try {
+      fs.unlinkSync(tempFilePath);
+    } catch (_e) {
+      // ignore unlink error
+    }
     return {
       success: false,
       error: "write_failed",
@@ -144,7 +148,11 @@ export async function applyPatchHandler(args: {
     fs.mkdirSync(path.dirname(targetPath), { recursive: true });
     fs.renameSync(tempFilePath, targetPath);
   } catch (err: any) {
-    try { fs.unlinkSync(tempFilePath); } catch (_e) {}
+    try {
+      fs.unlinkSync(tempFilePath);
+    } catch (_e) {
+      // ignore unlink error
+    }
     return {
       success: false,
       error: "write_failed",
