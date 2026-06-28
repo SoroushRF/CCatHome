@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 import { config } from "../../core/config.js";
-import { getDb, closeDb } from "../../core/db.js";
+import { closeDb } from "../../core/db.js";
 import { registerCapability, clearRegistry } from "../../core/router.js";
 import { invoke } from "../../core/dispatcher.js";
 import { runCommandGated } from "../../core/process-runner.js";
@@ -18,11 +18,15 @@ describe("Checkpoint & Rollback Subsystem Suite", () => {
     if (fs.existsSync(TEST_DIR)) {
       try {
         fs.rmSync(TEST_DIR, { recursive: true, force: true });
-      } catch (_e) {}
+      } catch (_e) {
+        // ignore
+      }
     }
     try {
       fs.mkdirSync(TEST_DIR, { recursive: true });
-    } catch (_e) {}
+    } catch (_e) {
+      // ignore
+    }
 
     // Initialize clean git repository
     await runCommandGated("git init");
@@ -46,7 +50,9 @@ describe("Checkpoint & Rollback Subsystem Suite", () => {
     if (fs.existsSync(TEST_DIR)) {
       try {
         fs.rmSync(TEST_DIR, { recursive: true, force: true });
-      } catch (_e) {}
+      } catch (_e) {
+        // ignore
+      }
     }
     config.workspaceRoot = process.cwd();
   });

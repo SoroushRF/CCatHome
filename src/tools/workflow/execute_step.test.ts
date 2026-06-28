@@ -20,10 +20,12 @@ describe("Execute Step Compound Loop Suite", () => {
     if (fs.existsSync(TEST_DIR)) {
       try {
         fs.rmSync(TEST_DIR, { recursive: true, force: true });
-      } catch (_e) {}
+      } catch (_e) {
+        // ignore
+      }
     }
     fs.mkdirSync(TEST_DIR, { recursive: true });
-
+    
     // Initialize git
     await runCommandGated("git init");
     await runCommandGated("git config user.email \"test@ccathome.com\"");
@@ -46,7 +48,9 @@ describe("Execute Step Compound Loop Suite", () => {
     if (fs.existsSync(TEST_DIR)) {
       try {
         fs.rmSync(TEST_DIR, { recursive: true, force: true });
-      } catch (_e) {}
+      } catch (_e) {
+        // ignore
+      }
     }
     config.workspaceRoot = process.cwd();
   });

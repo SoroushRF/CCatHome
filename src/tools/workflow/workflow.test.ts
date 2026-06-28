@@ -18,7 +18,9 @@ describe("Workflow DAG Engine Suite", () => {
     if (fs.existsSync(TEST_DIR)) {
       try {
         fs.rmSync(TEST_DIR, { recursive: true, force: true });
-      } catch (_e) {}
+      } catch (_e) {
+        // ignore
+      }
     }
     fs.mkdirSync(TEST_DIR, { recursive: true });
 
@@ -31,7 +33,9 @@ describe("Workflow DAG Engine Suite", () => {
     if (fs.existsSync(TEST_DIR)) {
       try {
         fs.rmSync(TEST_DIR, { recursive: true, force: true });
-      } catch (_e) {}
+      } catch (_e) {
+        // ignore
+      }
     }
     config.workspaceRoot = process.cwd();
   });
