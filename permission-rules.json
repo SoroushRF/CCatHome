@@ -14,7 +14,8 @@
         "^npm run test$",
         "^vitest",
         "^eslint",
-        "^prettier"
+        "^prettier",
+        "^git rev-parse\\b"
       ]
     },
     {
@@ -29,7 +30,11 @@
         "^npm run dev$",
         "^tsup",
         "^tsc",
-        "^node\\b"
+        "^node\\b",
+        "^git init$",
+        "^git config\\b",
+        "^git checkout\\b",
+        "^git branch\\b"
       ]
     },
     {
