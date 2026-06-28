@@ -105,8 +105,18 @@ describe("Process Capabilities Suite", () => {
     const killRes = await invoke("kill_process", { pid });
     expect(killRes.success).toBe(true);
 
-    // Verify it is killed (sending signal 0 will fail/throw)
-    expect(() => process.kill(pid, 0)).toThrow();
+    // Verify it is killed (sending signal 0 will fail/throw once the OS terminates/reaps it)
+    let killed = false;
+    for (let i = 0; i < 15; i++) {
+      try {
+        process.kill(pid, 0);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      } catch (_e) {
+        killed = true;
+        break;
+      }
+    }
+    expect(killed).toBe(true);
   });
 
   it("should block Tier 3 commands at the gate before spawning", async () => {
