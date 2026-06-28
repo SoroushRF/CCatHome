@@ -1,0 +1,160 @@
+import { z } from "zod";
+import { PermissionTier, CapabilityName } from "../../core/constants.js";
+import { CapabilityDefinition } from "../../core/router.js";
+import { runCommandGated } from "../../core/process-runner.js";
+import { getDb } from "../../core/db.js";
+import { checkpointHandler } from "../checkpoint/checkpoint.js";
+import { restoreCheckpointHandler } from "../checkpoint/restore_checkpoint.js";
+
+export const executeStepDefinition: CapabilityDefinition = {
+  name: CapabilityName.EXECUTE_STEP,
+  description: "Executes a workflow step using an auto-fix micro-loop with checkpointing, validation, and recovery commands.",
+  inputSchema: z.object({
+    workflowId: z.string().describe("The ID of the workflow"),
+    stepId: z.string().describe("The ID of the step to execute"),
+    executionCommand: z.string().describe("The command to run to execute the step"),
+    validationCommand: z.string().describe("The command to run to validate if the step succeeded"),
+    maxRetries: z.number().default(3).describe("Maximum number of retry/recovery attempts"),
+    recoveryCommand: z.string().optional().describe("Optional recovery command to run after restoring checkpoint and before retrying"),
+  }),
+  tier: PermissionTier.TIER_1, // Tier 1: Workspace writes / edits
+};
+
+interface StepRow {
+  status: string;
+  retry_count: number;
+}
+
+export async function executeStepHandler(args: {
+  workflowId: string;
+  stepId: string;
+  executionCommand: string;
+  validationCommand: string;
+  maxRetries: number;
+  recoveryCommand?: string;
+}): Promise<{
+  success: boolean;
+  status?: string;
+  retryCount?: number;
+  error?: string;
+  reason?: string;
+}> {
+  const db = getDb();
+
+  // 1. Verify step exists and is runnable (pending or failed)
+  const step = db.prepare(`
+    SELECT status, retry_count FROM workflow_steps
+    WHERE id = ? AND workflow_id = ?
+  `).get(args.stepId, args.workflowId) as StepRow | undefined;
+
+  if (!step) {
+    return {
+      success: false,
+      error: "step_not_found",
+      reason: `Step '${args.stepId}' not found in workflow '${args.workflowId}'`,
+    };
+  }
+
+  if (step.status === "completed") {
+    return {
+      success: true,
+      status: "completed",
+      retryCount: step.retry_count,
+    };
+  }
+
+  // Set step status to running
+  db.prepare(`
+    UPDATE workflow_steps SET status = 'running' WHERE id = ?
+  `).run(args.stepId);
+
+  let attemptLogs = "";
+  let success = false;
+  let attempt = 0;
+
+  while (attempt <= args.maxRetries) {
+    attempt++;
+    attemptLogs += `=== Attempt ${attempt} ===\n`;
+
+    // A. Pre-execution Checkpoint
+    const cpRes = await checkpointHandler({ workflowStepId: args.stepId });
+    if (!cpRes.success) {
+      attemptLogs += `Checkpoint failed: ${cpRes.reason}\n`;
+      break;
+    }
+    const checkpointId = cpRes.checkpointId!;
+
+    // B. Run Execution Command
+    attemptLogs += `Running execution: ${args.executionCommand}\n`;
+    const execRes = await runCommandGated(args.executionCommand);
+    attemptLogs += `Execution Exit Code: ${execRes.exitCode}\n`;
+    attemptLogs += `Execution Stdout:\n${execRes.stdout}\n`;
+    attemptLogs += `Execution Stderr:\n${execRes.stderr}\n\n`;
+
+    // C. Run Validation Command
+    attemptLogs += `Running validation: ${args.validationCommand}\n`;
+    const valRes = await runCommandGated(args.validationCommand);
+    attemptLogs += `Validation Exit Code: ${valRes.exitCode}\n`;
+    attemptLogs += `Validation Stdout:\n${valRes.stdout}\n`;
+    attemptLogs += `Validation Stderr:\n${valRes.stderr}\n\n`;
+
+    if (valRes.exitCode === 0) {
+      success = true;
+      break;
+    }
+
+    // D. Validation failed: Rollback state to checkpoint
+    if (attempt <= args.maxRetries) {
+      attemptLogs += `Validation failed. Restoring checkpoint ${checkpointId}...\n`;
+      const restoreRes = await restoreCheckpointHandler({ checkpointId });
+      if (!restoreRes.success) {
+        attemptLogs += `Restore checkpoint failed: ${restoreRes.reason}\n`;
+        break;
+      }
+
+      // E. Run recovery command if provided
+      if (args.recoveryCommand) {
+        attemptLogs += `Running recovery command: ${args.recoveryCommand}\n`;
+        const recRes = await runCommandGated(args.recoveryCommand);
+        attemptLogs += `Recovery Exit Code: ${recRes.exitCode}\n`;
+        attemptLogs += `Recovery Stdout:\n${recRes.stdout}\n`;
+        attemptLogs += `Recovery Stderr:\n${recRes.stderr}\n\n`;
+      }
+    } else {
+      attemptLogs += `Validation failed and max retries (${args.maxRetries}) reached.\n`;
+    }
+  }
+
+  const finalStatus = success ? "completed" : "failed";
+  const retryCount = attempt - 1;
+
+  // Update DB state
+  db.prepare(`
+    UPDATE workflow_steps
+    SET status = ?, retry_count = ?, full_log = ?
+    WHERE id = ?
+  `).run(finalStatus, retryCount, attemptLogs, args.stepId);
+
+  // If the entire workflow has finished or failed, we can update workflow status.
+  // We'll query if any steps are still failed or running.
+  const allSteps = db.prepare(`
+    SELECT status FROM workflow_steps WHERE workflow_id = ?
+  `).all(args.workflowId) as { status: string }[];
+
+  let wfStatus = "running";
+  if (allSteps.every(s => s.status === "completed")) {
+    wfStatus = "completed";
+  } else if (allSteps.some(s => s.status === "failed")) {
+    wfStatus = "failed";
+  }
+
+  db.prepare(`
+    UPDATE workflows SET status = ? WHERE id = ?
+  `).run(wfStatus, args.workflowId);
+
+  return {
+    success,
+    status: finalStatus,
+    retryCount,
+  };
+}
