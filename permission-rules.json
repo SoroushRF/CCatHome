@@ -28,7 +28,8 @@
         "^npm run format$",
         "^npm run dev$",
         "^tsup",
-        "^tsc"
+        "^tsc",
+        "^node\\b"
       ]
     },
     {
