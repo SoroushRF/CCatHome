@@ -27,37 +27,24 @@ describe("Database & Migrations Suite", () => {
     config.workspaceRoot = process.cwd();
   });
 
-  it("should initialize database and apply migrations", () => {
-    // 1. Create a mock migration
-    const migrationsDir = path.join(TEST_DIR, "db", "migrations");
-    fs.mkdirSync(migrationsDir, { recursive: true });
-    
-    fs.writeFileSync(
-      path.join(migrationsDir, "0001-init.sql"),
-      `CREATE TABLE test_users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL
-      );`,
-      "utf-8"
-    );
-
-    // 2. Open db and trigger migrations
+  it("should initialize database and apply production migrations", () => {
+    // 1. Open db and trigger migrations
     const db = getDb();
     
-    // Verify test_users table was created
-    const stmt = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='test_users'");
-    const table = stmt.get();
+    // Verify workflows table was created
+    const stmt = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='workflows'");
+    const table = stmt.get() as { name: string } | undefined;
     expect(table).toBeDefined();
-    expect(table.name).toBe("test_users");
+    expect(table?.name).toBe("workflows");
 
-    // Verify migrations log table recorded the run
+    // Verify migrations log table recorded the run of the initial migration
     const logStmt = db.prepare("SELECT name FROM migrations WHERE name = ?");
     const migrationLog = logStmt.get("0001-init.sql");
     expect(migrationLog).toBeDefined();
 
-    // 3. Test insert and query
-    db.prepare("INSERT INTO test_users (username) VALUES (?)").run("alice");
-    const user = db.prepare("SELECT username FROM test_users WHERE username = ?").get("alice");
-    expect(user.username).toBe("alice");
+    // 2. Test insert and query on workflows table
+    db.prepare("INSERT INTO workflows (id, name, status) VALUES (?, ?, 'pending')").run("wf1", "Test Workflow");
+    const wf = db.prepare("SELECT name FROM workflows WHERE id = ?").get("wf1") as { name: string } | undefined;
+    expect(wf?.name).toBe("Test Workflow");
   });
 });

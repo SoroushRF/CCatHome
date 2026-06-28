@@ -1,8 +1,10 @@
 import Database from "better-sqlite3";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
 import { config } from "./config.js";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let dbInstance: Database.Database | null = null;
 
 /**
@@ -52,7 +54,7 @@ export function closeDb(): void {
  * Runs all pending migrations under db/migrations/ in alphabetical order.
  */
 function runMigrations(db: Database.Database): void {
-  const migrationsDir = path.join(config.workspaceRoot, "db", "migrations");
+  const migrationsDir = path.resolve(__dirname, "..", "..", "db", "migrations");
   if (!fs.existsSync(migrationsDir)) {
     return;
   }
