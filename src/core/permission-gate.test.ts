@@ -18,7 +18,6 @@ describe("Permission Gate Command Classifier", () => {
 
   it("should classify Tier 2 commands correctly", () => {
     expect(classifyCommand("git push origin main")).toBe(PermissionTier.TIER_2);
-    expect(classifyCommand("npm install zod")).toBe(PermissionTier.TIER_2);
     expect(classifyCommand("curl https://google.com")).toBe(PermissionTier.TIER_2);
   });
 

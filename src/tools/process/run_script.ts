@@ -38,11 +38,23 @@ export async function runScriptHandler(args: {
       return runCommandGated(command);
     },
     readFile: async (relativePath: string) => {
+      const gateResult = classifyAndGate(`read_file ${relativePath}`);
+      if (!gateResult.allowed) {
+        throw new Error(
+          `Permission denied: Read access to '${relativePath}' was rejected by the Permission Gate (Tier ${gateResult.tier})`
+        );
+      }
       // Resolving path inside workspace root for safety
       const safePath = resolveSafePath(config.workspaceRoot, relativePath);
       return fs.readFileSync(safePath, "utf-8");
     },
     writeFile: async (relativePath: string, content: string) => {
+      const gateResult = classifyAndGate(`write_file ${relativePath}`);
+      if (!gateResult.allowed) {
+        throw new Error(
+          `Permission denied: Write access to '${relativePath}' was rejected by the Permission Gate (Tier ${gateResult.tier})`
+        );
+      }
       // Resolving path inside workspace root for safety
       const safePath = resolveSafePath(config.workspaceRoot, relativePath);
       fs.mkdirSync(path.dirname(safePath), { recursive: true });

@@ -1,5 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
+import * as crypto from "crypto";
+import { fileURLToPath } from "url";
 import { PermissionTier } from "./constants.js";
 import { getDb } from "./db.js";
 import { config } from "./config.js";
@@ -35,24 +37,42 @@ function loadRulesConfig(): RulesConfig {
     return cachedConfig;
   }
 
-  // Try locating permission-rules.json in working directory
-  const rootPath = path.resolve(process.cwd(), "permission-rules.json");
-  try {
-    if (fs.existsSync(rootPath)) {
-      const data = fs.readFileSync(rootPath, "utf-8");
-      cachedConfig = JSON.parse(data) as RulesConfig;
-      return cachedConfig;
-    }
-  } catch (_err) {
-    // Fall through to fallback
+  // Define potential locations to resolve permission-rules.json
+  const pathsToTry: string[] = [];
+
+  if (config.workspaceRoot) {
+    pathsToTry.push(path.resolve(config.workspaceRoot, "permission-rules.json"));
   }
+  pathsToTry.push(path.resolve(process.cwd(), "permission-rules.json"));
+  
+  try {
+    const currentDir = path.dirname(fileURLToPath(import.meta.url));
+    pathsToTry.push(path.resolve(currentDir, "../../permission-rules.json"));
+  } catch (_e) {
+    // Ignore in non-ESM/test contexts
+  }
+
+  for (const rootPath of pathsToTry) {
+    try {
+      if (fs.existsSync(rootPath)) {
+        const data = fs.readFileSync(rootPath, "utf-8");
+        cachedConfig = JSON.parse(data) as RulesConfig;
+        return cachedConfig;
+      }
+    } catch (err: any) {
+      console.error(`ERROR loading path ${rootPath}:`, err.message);
+    }
+  }
+
+  // Log a loud warning if fallback is reached
+  console.error("WARNING: permission-rules.json config file not found. Falling back to strict default ruleset.");
 
   // Fallback default rules if loading fails
   return {
     rules: [
       {
         tier: 3,
-        patterns: ["^rm -rf /", "sudo", "\\.\\./\\.\\./"],
+        patterns: ["rm\\s+-rf\\s+/", "sudo", "\\.\\./\\.\\./"],
       },
     ],
     defaultTier: 2,
@@ -104,35 +124,43 @@ export function classifyAndGate(command: string): { allowed: boolean; tier: Perm
   if (tier === PermissionTier.TIER_2) {
     try {
       const db = getDb();
-      
-      // Check if this command has been approved for the active step
-      let query = "SELECT status FROM pending_confirmations WHERE command = ?";
-      const queryParams: any[] = [command];
+      let allowed = false;
 
-      if (config.activeStepId) {
-        query += " AND step_id = ?";
-        queryParams.push(config.activeStepId);
-      } else {
-        query += " AND step_id IS NULL";
-      }
+      // Wrap checks and insertions inside a single transaction to prevent SELECT-then-INSERT races
+      db.transaction(() => {
+        // Check if this command has been approved for the active step
+        let query = "SELECT status FROM pending_confirmations WHERE command = ?";
+        const queryParams: any[] = [command];
 
-      query += " ORDER BY created_at DESC LIMIT 1";
+        if (config.activeStepId) {
+          query += " AND step_id = ?";
+          queryParams.push(config.activeStepId);
+        } else {
+          query += " AND step_id IS NULL";
+        }
 
-      const existing = db.prepare(query).get(...queryParams) as { status: string } | undefined;
+        query += " ORDER BY created_at DESC LIMIT 1";
 
-      if (existing && existing.status === "approved") {
+        const existing = db.prepare(query).get(...queryParams) as { status: string } | undefined;
+
+        if (existing && existing.status === "approved") {
+          allowed = true;
+          return;
+        }
+
+        // If not approved and not already pending, insert a pending confirmation record
+        if (!existing || existing.status === "rejected") {
+          const id = crypto.randomUUID();
+          db.prepare(`
+            INSERT INTO pending_confirmations (id, step_id, command, status)
+            VALUES (?, ?, ?, 'pending')
+          `).run(id, config.activeStepId || null, command);
+        }
+      })();
+
+      if (allowed) {
         return { allowed: true, tier };
       }
-
-      // If not approved and not already pending, insert a pending confirmation record
-      if (!existing || existing.status === "rejected") {
-        const id = Math.random().toString(36).substring(2, 15);
-        db.prepare(`
-          INSERT INTO pending_confirmations (id, step_id, command, status)
-          VALUES (?, ?, ?, 'pending')
-        `).run(id, config.activeStepId || null, command);
-      }
-
       return { allowed: false, tier };
     } catch (_err) {
       // Fallback if DB is not initialized or in a non-db context (like early tests)
