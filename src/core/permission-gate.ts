@@ -1,6 +1,21 @@
 import * as fs from "fs";
 import * as path from "path";
 import { PermissionTier } from "./constants.js";
+import { getDb } from "./db.js";
+import { config } from "./config.js";
+
+// Custom error for confirmation requests
+export class RequiresConfirmationError extends Error {
+  public command: string;
+  public tier: PermissionTier;
+
+  constructor(command: string, tier: PermissionTier) {
+    super(`Command '${command}' requires explicit user confirmation (Tier ${tier})`);
+    this.name = "RequiresConfirmationError";
+    this.command = command;
+    this.tier = tier;
+  }
+}
 
 interface Rule {
   tier: number;
@@ -51,11 +66,11 @@ function loadRulesConfig(): RulesConfig {
  * If no rules match, the defaultTier (Tier 2) is returned.
  */
 export function classifyCommand(command: string): PermissionTier {
-  const config = loadRulesConfig();
+  const configObj = loadRulesConfig();
   const trimmed = command.trim();
 
   // Sort tiers descending to check Tier 3 (highest restriction) first
-  const sortedRules = [...config.rules].sort((a, b) => b.tier - a.tier);
+  const sortedRules = [...configObj.rules].sort((a, b) => b.tier - a.tier);
 
   for (const rule of sortedRules) {
     for (const pattern of rule.patterns) {
@@ -70,7 +85,7 @@ export function classifyCommand(command: string): PermissionTier {
     }
   }
 
-  return config.defaultTier as PermissionTier;
+  return configObj.defaultTier as PermissionTier;
 }
 
 /**
@@ -85,9 +100,44 @@ export function classifyAndGate(command: string): { allowed: boolean; tier: Perm
   if (tier === PermissionTier.TIER_3) {
     return { allowed: false, tier };
   }
+
   if (tier === PermissionTier.TIER_2) {
-    // In Phase 1/3, this will raise ask_user(type: "permission"). For Phase 0, we return allowed: false to represent requiring confirmation.
-    return { allowed: false, tier };
+    try {
+      const db = getDb();
+      
+      // Check if this command has been approved for the active step
+      let query = "SELECT status FROM pending_confirmations WHERE command = ?";
+      let queryParams: any[] = [command];
+
+      if (config.activeStepId) {
+        query += " AND step_id = ?";
+        queryParams.push(config.activeStepId);
+      } else {
+        query += " AND step_id IS NULL";
+      }
+
+      query += " ORDER BY created_at DESC LIMIT 1";
+
+      const existing = db.prepare(query).get(...queryParams) as { status: string } | undefined;
+
+      if (existing && existing.status === "approved") {
+        return { allowed: true, tier };
+      }
+
+      // If not approved and not already pending, insert a pending confirmation record
+      if (!existing || existing.status === "rejected") {
+        const id = Math.random().toString(36).substring(2, 15);
+        db.prepare(`
+          INSERT INTO pending_confirmations (id, step_id, command, status)
+          VALUES (?, ?, ?, 'pending')
+        `).run(id, config.activeStepId || null, command);
+      }
+
+      return { allowed: false, tier };
+    } catch (_err) {
+      // Fallback if DB is not initialized or in a non-db context (like early tests)
+      return { allowed: false, tier };
+    }
   }
 
   return { allowed: true, tier };

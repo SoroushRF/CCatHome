@@ -1,6 +1,7 @@
 import * as child_process from "child_process";
-import { classifyAndGate } from "./permission-gate.js";
+import { classifyAndGate, RequiresConfirmationError } from "./permission-gate.js";
 import { config } from "./config.js";
+import { PermissionTier } from "./constants.js";
 
 export interface GatedRunResult {
   stdout: string;
@@ -15,6 +16,9 @@ export interface GatedRunResult {
 export async function runCommandGated(command: string): Promise<GatedRunResult> {
   const gateResult = classifyAndGate(command);
   if (!gateResult.allowed) {
+    if (gateResult.tier === PermissionTier.TIER_2) {
+      throw new RequiresConfirmationError(command, gateResult.tier);
+    }
     throw new Error(
       `Permission denied: Command '${command}' was rejected by the Permission Gate (Tier ${gateResult.tier})`,
     );

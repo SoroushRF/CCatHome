@@ -5,6 +5,8 @@ import { runCommandGated } from "../../core/process-runner.js";
 import { getDb } from "../../core/db.js";
 import { checkpointHandler } from "../checkpoint/checkpoint.js";
 import { restoreCheckpointHandler } from "../checkpoint/restore_checkpoint.js";
+import { config } from "../../core/config.js";
+import { RequiresConfirmationError } from "../../core/permission-gate.js";
 
 export const executeStepDefinition: CapabilityDefinition = {
   name: CapabilityName.EXECUTE_STEP,
@@ -41,7 +43,7 @@ export async function executeStepHandler(args: {
 }> {
   const db = getDb();
 
-  // 1. Verify step exists and is runnable (pending or failed)
+  // 1. Verify step exists and is runnable (pending, running, failed, or requires_confirmation)
   const step = db.prepare(`
     SELECT status, retry_count FROM workflow_steps
     WHERE id = ? AND workflow_id = ?
@@ -63,6 +65,10 @@ export async function executeStepHandler(args: {
     };
   }
 
+  // Set active step ID and workflow ID context
+  config.activeStepId = args.stepId;
+  config.activeWorkflowId = args.workflowId;
+
   // Set step status to running
   db.prepare(`
     UPDATE workflow_steps SET status = 'running' WHERE id = ?
@@ -72,58 +78,92 @@ export async function executeStepHandler(args: {
   let success = false;
   let attempt = 0;
 
-  while (attempt <= args.maxRetries) {
-    attempt++;
-    attemptLogs += `=== Attempt ${attempt} ===\n`;
+  try {
+    while (attempt <= args.maxRetries) {
+      attempt++;
+      attemptLogs += `=== Attempt ${attempt} ===\n`;
 
-    // A. Pre-execution Checkpoint
-    const cpRes = await checkpointHandler({ workflowStepId: args.stepId });
-    if (!cpRes.success) {
-      attemptLogs += `Checkpoint failed: ${cpRes.reason}\n`;
-      break;
-    }
-    const checkpointId = cpRes.checkpointId!;
+      // A. Pre-execution Checkpoint
+      const cpRes = await checkpointHandler({ workflowStepId: args.stepId });
+      if (!cpRes.success) {
+        attemptLogs += `Checkpoint failed: ${cpRes.reason}\n`;
+        break;
+      }
+      const checkpointId = cpRes.checkpointId!;
 
-    // B. Run Execution Command
-    attemptLogs += `Running execution: ${args.executionCommand}\n`;
-    const execRes = await runCommandGated(args.executionCommand);
-    attemptLogs += `Execution Exit Code: ${execRes.exitCode}\n`;
-    attemptLogs += `Execution Stdout:\n${execRes.stdout}\n`;
-    attemptLogs += `Execution Stderr:\n${execRes.stderr}\n\n`;
+      // B. Run Execution Command
+      attemptLogs += `Running execution: ${args.executionCommand}\n`;
+      const execRes = await runCommandGated(args.executionCommand);
+      attemptLogs += `Execution Exit Code: ${execRes.exitCode}\n`;
+      attemptLogs += `Execution Stdout:\n${execRes.stdout}\n`;
+      attemptLogs += `Execution Stderr:\n${execRes.stderr}\n\n`;
 
-    // C. Run Validation Command
-    attemptLogs += `Running validation: ${args.validationCommand}\n`;
-    const valRes = await runCommandGated(args.validationCommand);
-    attemptLogs += `Validation Exit Code: ${valRes.exitCode}\n`;
-    attemptLogs += `Validation Stdout:\n${valRes.stdout}\n`;
-    attemptLogs += `Validation Stderr:\n${valRes.stderr}\n\n`;
+      // C. Run Validation Command
+      attemptLogs += `Running validation: ${args.validationCommand}\n`;
+      const valRes = await runCommandGated(args.validationCommand);
+      attemptLogs += `Validation Exit Code: ${valRes.exitCode}\n`;
+      attemptLogs += `Validation Stdout:\n${valRes.stdout}\n`;
+      attemptLogs += `Validation Stderr:\n${valRes.stderr}\n\n`;
 
-    if (valRes.exitCode === 0) {
-      success = true;
-      break;
-    }
-
-    // D. Validation failed: Rollback state to checkpoint
-    if (attempt <= args.maxRetries) {
-      attemptLogs += `Validation failed. Restoring checkpoint ${checkpointId}...\n`;
-      const restoreRes = await restoreCheckpointHandler({ checkpointId });
-      if (!restoreRes.success) {
-        attemptLogs += `Restore checkpoint failed: ${restoreRes.reason}\n`;
+      if (valRes.exitCode === 0) {
+        success = true;
         break;
       }
 
-      // E. Run recovery command if provided
-      if (args.recoveryCommand) {
-        attemptLogs += `Running recovery command: ${args.recoveryCommand}\n`;
-        const recRes = await runCommandGated(args.recoveryCommand);
-        attemptLogs += `Recovery Exit Code: ${recRes.exitCode}\n`;
-        attemptLogs += `Recovery Stdout:\n${recRes.stdout}\n`;
-        attemptLogs += `Recovery Stderr:\n${recRes.stderr}\n\n`;
+      // D. Validation failed: Rollback state to checkpoint
+      if (attempt <= args.maxRetries) {
+        attemptLogs += `Validation failed. Restoring checkpoint ${checkpointId}...\n`;
+        const restoreRes = await restoreCheckpointHandler({ checkpointId });
+        if (!restoreRes.success) {
+          attemptLogs += `Restore checkpoint failed: ${restoreRes.reason}\n`;
+          break;
+        }
+
+        // E. Run recovery command if provided
+        if (args.recoveryCommand) {
+          attemptLogs += `Running recovery command: ${args.recoveryCommand}\n`;
+          const recRes = await runCommandGated(args.recoveryCommand);
+          attemptLogs += `Recovery Exit Code: ${recRes.exitCode}\n`;
+          attemptLogs += `Recovery Stdout:\n${recRes.stdout}\n`;
+          attemptLogs += `Recovery Stderr:\n${recRes.stderr}\n\n`;
+        }
+      } else {
+        attemptLogs += `Validation failed and max retries (${args.maxRetries}) reached.\n`;
       }
-    } else {
-      attemptLogs += `Validation failed and max retries (${args.maxRetries}) reached.\n`;
     }
+  } catch (err: any) {
+    if (err instanceof RequiresConfirmationError) {
+      attemptLogs += `Step paused: requires user confirmation for command: '${err.command}'\n`;
+      const retryCount = Math.max(0, attempt - 1);
+      
+      db.prepare(`
+        UPDATE workflow_steps
+        SET status = 'requires_confirmation', retry_count = ?, full_log = ?
+        WHERE id = ?
+      `).run(retryCount, attemptLogs, args.stepId);
+
+      db.prepare(`
+        UPDATE workflows SET status = 'requires_confirmation' WHERE id = ?
+      `).run(args.workflowId);
+
+      config.activeStepId = undefined;
+      config.activeWorkflowId = undefined;
+
+      return {
+        success: false,
+        status: "requires_confirmation",
+        error: "requires_confirmation",
+        reason: `Command requires confirmation: '${err.command}'`,
+      };
+    }
+
+    config.activeStepId = undefined;
+    config.activeWorkflowId = undefined;
+    throw err;
   }
+
+  config.activeStepId = undefined;
+  config.activeWorkflowId = undefined;
 
   const finalStatus = success ? "completed" : "failed";
   const retryCount = attempt - 1;
