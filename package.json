@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
-    "lint": "eslint \"src/**/*.ts\"",
+    "lint": "eslint \"src/**/*.ts\" && node scripts/lint-gate-bypass.js",
     "format": "prettier --write \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit"
   },
