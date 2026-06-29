@@ -107,7 +107,7 @@ export function classifyAndGate(command: string): { allowed: boolean; tier: Perm
       
       // Check if this command has been approved for the active step
       let query = "SELECT status FROM pending_confirmations WHERE command = ?";
-      let queryParams: any[] = [command];
+      const queryParams: any[] = [command];
 
       if (config.activeStepId) {
         query += " AND step_id = ?";

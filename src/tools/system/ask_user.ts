@@ -52,7 +52,7 @@ export async function askUserHandler(args: {
     
     // Find pending confirmation matching this command
     let query = "SELECT id, step_id FROM pending_confirmations WHERE command = ? AND status = 'pending'";
-    let queryParams: any[] = [args.command];
+    const queryParams: any[] = [args.command];
 
     if (config.activeStepId) {
       query += " AND step_id = ?";
