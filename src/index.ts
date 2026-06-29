@@ -5,6 +5,7 @@ import { registerAllCapabilities } from "./core/bootstrap.js";
 import { getAllCapabilities } from "./core/router.js";
 import { invoke } from "./core/dispatcher.js";
 import { TIER_A_TOOLS } from "./core/dispatcher.js";
+import { startDashboardServer } from "./core/dashboard-server.js";
 
 export async function main() {
   // 1. Bootstrap all tools
@@ -30,7 +31,7 @@ export async function main() {
           const res = await invoke(cap.definition.name, args);
           if (!res.success) {
             return {
-              content: [{ type: "text", text: `Error: ${res.error}${res.reason ? `. ${res.reason}` : ""}` }],
+              content: [{ type: "text", text: `Error: ${res.error}` }],
               isError: true,
             };
           }
@@ -48,7 +49,15 @@ export async function main() {
     }
   }
 
-  // 4. Start Stdio transport
+  // 4. Start Dashboard Server concurrently on port 3141
+  try {
+    await startDashboardServer(3141);
+    console.error("Dashboard server listening on http://localhost:3141");
+  } catch (err: any) {
+    console.error(`Failed to start dashboard server: ${err.message}`);
+  }
+
+  // 5. Start Stdio transport
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("CCatHome MCP Server running on stdio transport");
