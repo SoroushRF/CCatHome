@@ -2,7 +2,7 @@
   "rules": [
     {
       "tier": 0,
-      "description": "Always allowed (read-only inspect, formatting, test runners)",
+      "description": "Always allowed (read-only inspect, formatting, test runners, safe installations)",
       "patterns": [
         "^git status\\b",
         "^git diff\\b",
@@ -15,12 +15,16 @@
         "^vitest",
         "^eslint",
         "^prettier",
-        "^git rev-parse\\b"
+        "^git rev-parse\\b",
+        "^npm i\\b",
+        "^npm install\\b",
+        "^npm ci\\b",
+        "^read_file\\b"
       ]
     },
     {
       "tier": 1,
-      "description": "Allowed within workspace scope (writes, local build, lint, commit)",
+      "description": "Allowed within workspace scope (writes, local build, lint, commit, safe git switches)",
       "patterns": [
         "^git add ",
         "^git commit",
@@ -34,36 +38,40 @@
         "^git init$",
         "^git config\\b",
         "^git checkout\\b",
+        "^git reset\\b",
         "^git branch\\b",
-        "^git clean\\b",
-        "^git reset\\b"
+        "^write_file\\b"
       ]
     },
     {
       "tier": 2,
-      "description": "Requires confirmation (remote sync, installer commands, outbound requests)",
+      "description": "Requires confirmation (remote sync, outbound requests, destructive local git ops)",
       "patterns": [
         "^git push",
         "^git pull",
         "^git fetch",
         "^git clone",
-        "^npm i",
-        "^npm install",
-        "^npm ci",
         "^curl ",
-        "^wget "
+        "^wget ",
+        "^git checkout\\s+--",
+        "^git checkout\\s+\\.",
+        "^git reset\\s+--hard",
+        "^git clean\\b"
       ]
     },
     {
       "tier": 3,
-      "description": "Always blocked (destructive, root traversal, process hijacking, piping to shell)",
+      "description": "Always blocked (destructive, root traversal, process hijacking, piping to shell, sensitive path hijacking)",
       "patterns": [
-        "^rm -rf /$",
-        "^rm -rf /\\s",
+        "\\brm\\s+-[a-zA-Z]*r[a-zA-Z]*\\s+(?:--no-preserve-root\\s+)?/\\s*",
         "\\.\\./\\.\\./",
         "\\bsudo\\b",
         "\\|\\s*bash\\b",
-        "\\|\\s*sh\\b"
+        "\\|\\s*sh\\b",
+        "write_file.*\\.git/hooks",
+        "write_file.*\\.env",
+        "write_file.*permission-rules\\.json",
+        "write_file.*\\.sqlite"
       ]
     }
   ],
