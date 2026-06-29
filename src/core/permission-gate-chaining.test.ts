@@ -25,6 +25,10 @@ describe("Permission Gate Security Hardening Suite (Findings #1, #2, #4)", () =>
     expect(classifyCommand("node run.js || sudo rm -rf /")).toBe(PermissionTier.TIER_3);
     expect(classifyCommand("rm --force --recursive /")).toBe(PermissionTier.TIER_3);
     expect(classifyCommand("echo hello; rm --recursive /")).toBe(PermissionTier.TIER_3);
+    expect(classifyCommand("rm -rf /var/lib/important")).toBe(PermissionTier.TIER_3);
+    expect(classifyCommand("rm --recursive /etc/config")).toBe(PermissionTier.TIER_3);
+    expect(classifyCommand("rm -rf .git")).toBe(PermissionTier.TIER_3);
+    expect(classifyCommand("rm -rf /home/user/project/.git")).toBe(PermissionTier.TIER_3);
   });
 
   it("should block sensitive path writes inside the workspace", () => {

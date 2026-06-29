@@ -64,6 +64,8 @@
       "description": "Always blocked (destructive, root traversal, process hijacking, piping to shell, sensitive path hijacking)",
       "patterns": [
         "\\brm\\b.*(?:-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)\\b.*\\s+/($|\\s|;|\\||&)",
+        "\\brm\\b.*(?:-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)\\b.*\\s+/(?:etc|var|usr|bin|sbin|opt|sys|dev|proc|boot|root|home|Users|System|Windows|Program Files|ProgramData)\\b",
+        "\\brm\\b.*(?:\\.git|\\.env|permission-rules\\.json|ccathome\\.sqlite)",
         "\\.\\./\\.\\./",
         "\\bsudo\\b",
         "\\|\\s*bash\\b",
