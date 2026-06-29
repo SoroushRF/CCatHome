@@ -1,8 +1,10 @@
 import * as http from "http";
+import * as crypto from "crypto";
 import { getDb } from "./db.js";
 
 let serverInstance: http.Server | null = null;
 let pollInterval: NodeJS.Timeout | null = null;
+let activeToken: string | null = null;
 
 // The static HTML UI page for the dashboard (premium dark glassmorphic design)
 const HTML_CONTENT = `
@@ -417,16 +419,51 @@ const HTML_CONTENT = `
  */
 export function startDashboardServer(port = 3141): Promise<http.Server> {
   return new Promise((resolve, reject) => {
+    // Generate secure random token
+    activeToken = crypto.randomBytes(16).toString("hex");
+
     const server = http.createServer((req, res) => {
+      // Parse query string and cookies
+      const reqUrl = req.url || "";
+      const parsedUrl = new URL(reqUrl, `http://${req.headers.host || "localhost"}`);
+      const queryToken = parsedUrl.searchParams.get("token");
+
+      const parseCookies = (cookieHeader?: string): Record<string, string> => {
+        const list: Record<string, string> = {};
+        if (!cookieHeader) return list;
+        cookieHeader.split(";").forEach((cookie) => {
+          const parts = cookie.split("=");
+          list[parts[0].trim()] = (parts[1] || "").trim();
+        });
+        return list;
+      };
+      
+      const cookies = parseCookies(req.headers.cookie);
+      const cookieToken = cookies["ccathome_token"];
+
+      // Verify token
+      const isAuthenticated = (queryToken && queryToken === activeToken) || (cookieToken && cookieToken === activeToken);
+
+      if (!isAuthenticated) {
+        res.writeHead(401, { "Content-Type": "text/plain" });
+        res.end("Unauthorized: Dashboard requires valid connection token.");
+        return;
+      }
+
+      // If authorized via query parameter, set cookie to avoid sending token in future requests
+      if (queryToken && queryToken === activeToken) {
+        res.setHeader("Set-Cookie", `ccathome_token=${activeToken}; HttpOnly; Path=/; SameSite=Strict`);
+      }
+
       // 1. Serve home HTML UI
-      if (req.method === "GET" && (req.url === "/" || req.url === "/index.html")) {
+      if (req.method === "GET" && (parsedUrl.pathname === "/" || parsedUrl.pathname === "/index.html")) {
         res.writeHead(200, { "Content-Type": "text/html" });
         res.end(HTML_CONTENT);
         return;
       }
 
       // 2. Serve Server-Sent Events (SSE) Endpoint
-      if (req.method === "GET" && req.url === "/api/events") {
+      if (req.method === "GET" && parsedUrl.pathname === "/api/events") {
         res.writeHead(200, {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",
@@ -497,6 +534,7 @@ export function startDashboardServer(port = 3141): Promise<http.Server> {
 
     server.listen(port, "localhost", () => {
       serverInstance = server;
+      (server as any).token = activeToken;
       resolve(server);
     });
   });
@@ -506,6 +544,7 @@ export function startDashboardServer(port = 3141): Promise<http.Server> {
  * Stops the running dashboard server.
  */
 export function stopDashboardServer(): void {
+  activeToken = null;
   if (pollInterval) {
     clearInterval(pollInterval);
     pollInterval = null;
