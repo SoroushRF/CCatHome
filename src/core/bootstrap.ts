@@ -39,6 +39,7 @@ import { listCapabilitiesDefinition, listCapabilitiesHandler } from "../tools/sy
 import { invokeDefinition, invokeHandler } from "../tools/system/invoke.js";
 import { askUserDefinition, askUserHandler } from "../tools/system/ask_user.js";
 import { detectWorkspaceDefinition, detectWorkspaceHandler } from "../tools/system/detect_workspace.js";
+import { openProjectDefinition, openProjectHandler } from "../tools/system/open_project.js";
 
 /**
  * Registers all capabilities in the router registry.
@@ -84,4 +85,5 @@ export function registerAllCapabilities(): void {
   registerCapability(invokeDefinition, invokeHandler);
   registerCapability(askUserDefinition, askUserHandler);
   registerCapability(detectWorkspaceDefinition, detectWorkspaceHandler);
+  registerCapability(openProjectDefinition, openProjectHandler);
 }

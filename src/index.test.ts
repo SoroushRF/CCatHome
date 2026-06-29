@@ -38,14 +38,14 @@ describe("Stdio MCP Server Configuration & Binding Suite (Step 3.5 E2E)", () => 
     }
   });
 
-  it("should register all 11 Tier A capabilities as MCP tools directly", () => {
+  it("should register all 12 Tier A capabilities as MCP tools directly", () => {
     // Access private _registeredTools map from McpServer
     const registered = (server as any)._registeredTools;
     expect(registered).toBeDefined();
 
-    // Total Tier A tools in constants.ts (11 tools)
+    // Total Tier A tools in constants.ts (12 tools)
     const expectedTierA = Array.from(TIER_A_TOOLS);
-    expect(expectedTierA.length).toBe(11);
+    expect(expectedTierA.length).toBe(12);
 
     for (const toolName of expectedTierA) {
       expect(registered[toolName]).toBeDefined();

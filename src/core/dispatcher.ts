@@ -15,6 +15,7 @@ export const TIER_A_TOOLS = new Set<string>([
   CapabilityName.CREATE_WORKFLOW,
   CapabilityName.GET_WORKFLOW_STATE,
   CapabilityName.ASK_USER,
+  CapabilityName.OPEN_PROJECT,
 ]);
 
 export interface InvokeResult {

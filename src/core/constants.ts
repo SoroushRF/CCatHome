@@ -34,6 +34,7 @@ export enum CapabilityName {
   CREATE_WORKFLOW = "create_workflow",
   GET_WORKFLOW_STATE = "get_workflow_state",
   ASK_USER = "ask_user",
+  OPEN_PROJECT = "open_project",
 
   // Tier B
   SEARCH_FILES = "search_files",
