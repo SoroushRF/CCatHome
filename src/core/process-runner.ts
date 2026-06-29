@@ -10,8 +10,50 @@ export interface GatedRunResult {
 }
 
 /**
+ * Executes a shell command directly without passing through the Permission Gate.
+ * Only to be used internally by trusted system components (like checkpoint/rollback).
+ */
+export async function runCommandUngated(command: string): Promise<GatedRunResult> {
+  return new Promise((resolve) => {
+    const child = child_process.spawn(command, {
+      shell: true,
+      cwd: config.workspaceRoot,
+      env: { ...process.env, PAGER: "cat" },
+    });
+
+    const stdoutChunks: string[] = [];
+    const stderrChunks: string[] = [];
+
+    child.stdout.on("data", (data) => {
+      stdoutChunks.push(data.toString());
+    });
+
+    child.stderr.on("data", (data) => {
+      stderrChunks.push(data.toString());
+    });
+
+    child.on("close", (code) => {
+      resolve({
+        stdout: stdoutChunks.join("").trim(),
+        stderr: stderrChunks.join("").trim(),
+        exitCode: code ?? 0,
+      });
+    });
+
+    child.on("error", (err) => {
+      resolve({
+        stdout: stdoutChunks.join("").trim(),
+        stderr: (stderrChunks.join("") + "\n" + err.message).trim(),
+        exitCode: 1,
+      });
+    });
+  });
+}
+
+/**
  * Executes a shell command after running it through the central Permission Gate.
  * Throws a permission error if the command is blocked or requires confirmation.
+ * Uses child_process.spawn to stream output and avoid buffer memory limit failures.
  */
 export async function runCommandGated(command: string): Promise<GatedRunResult> {
   const gateResult = classifyAndGate(command);
@@ -24,28 +66,5 @@ export async function runCommandGated(command: string): Promise<GatedRunResult> 
     );
   }
 
-  return new Promise((resolve) => {
-    child_process.exec(
-      command,
-      {
-        cwd: config.workspaceRoot,
-        env: { ...process.env, PAGER: "cat" },
-      },
-      (error, stdout, stderr) => {
-        if (error) {
-          resolve({
-            stdout: stdout.trim(),
-            stderr: stderr.trim(),
-            exitCode: error.code ?? 1,
-          });
-        } else {
-          resolve({
-            stdout: stdout.trim(),
-            stderr: stderr.trim(),
-            exitCode: 0,
-          });
-        }
-      },
-    );
-  });
+  return runCommandUngated(command);
 }

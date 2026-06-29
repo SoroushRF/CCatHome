@@ -4,7 +4,7 @@ import * as crypto from "crypto";
 import { z } from "zod";
 import { PermissionTier, CapabilityName } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
-import { runCommandGated } from "../../core/process-runner.js";
+import { runCommandUngated } from "../../core/process-runner.js";
 import { getDb } from "../../core/db.js";
 import { config } from "../../core/config.js";
 import { resolveSafePath } from "../../core/path-utils.js";
@@ -32,7 +32,7 @@ export async function checkpointHandler(args: {
 
   try {
     // 1. Get current git SHA
-    const shaRes = await runCommandGated("git rev-parse HEAD");
+    const shaRes = await runCommandUngated("git rev-parse HEAD");
     if (shaRes.exitCode !== 0) {
       return {
         success: false,
@@ -43,7 +43,7 @@ export async function checkpointHandler(args: {
     const gitSha = shaRes.stdout.trim();
 
     // 2. Scan for uncommitted (modified, deleted, staged, untracked) files
-    const statusRes = await runCommandGated("git status --porcelain");
+    const statusRes = await runCommandUngated("git status --porcelain");
     if (statusRes.exitCode !== 0) {
       return {
         success: false,

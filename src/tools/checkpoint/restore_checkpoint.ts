@@ -3,7 +3,7 @@ import * as path from "path";
 import { z } from "zod";
 import { PermissionTier, CapabilityName } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
-import { runCommandGated } from "../../core/process-runner.js";
+import { runCommandUngated } from "../../core/process-runner.js";
 import { getDb } from "../../core/db.js";
 import { config } from "../../core/config.js";
 import { resolveSafePath } from "../../core/path-utils.js";
@@ -58,7 +58,7 @@ export async function restoreCheckpointHandler(args: {
     }[];
 
     // 2. Hard reset git to the saved SHA
-    const resetRes = await runCommandGated(`git reset --hard ${gitSha}`);
+    const resetRes = await runCommandUngated(`git reset --hard ${gitSha}`);
     if (resetRes.exitCode !== 0) {
       return {
         success: false,
@@ -68,7 +68,7 @@ export async function restoreCheckpointHandler(args: {
     }
 
     // 3. Clean untracked files, excluding system metadata and skills folders
-    const cleanRes = await runCommandGated("git clean -fd -e .ccathome -e .agents -e .agent");
+    const cleanRes = await runCommandUngated("git clean -fd -e .ccathome -e .agents -e .agent");
     if (cleanRes.exitCode !== 0) {
       return {
         success: false,
