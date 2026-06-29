@@ -7,7 +7,16 @@ import { invoke } from "./core/dispatcher.js";
 import { TIER_A_TOOLS } from "./core/dispatcher.js";
 import { startDashboardServer } from "./core/dashboard-server.js";
 
+import { config } from "./core/config.js";
+import * as path from "path";
+
 export async function main() {
+  // Support specifying custom workspace root via argv or env
+  const customWorkspace = process.argv[2] || process.env.WORKSPACE_ROOT;
+  if (customWorkspace) {
+    config.workspaceRoot = path.resolve(customWorkspace);
+  }
+
   // 1. Bootstrap all tools
   registerAllCapabilities();
 
