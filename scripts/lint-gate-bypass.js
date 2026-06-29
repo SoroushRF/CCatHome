@@ -19,7 +19,8 @@ const FS_WHITELIST_FILES = new Set([
   path.resolve('src/tools/process/run_script.ts'),
   path.resolve('src/tools/process/expand_log.ts'),
   path.resolve('src/tools/process/read_process_output.ts'),
-  path.resolve('src/tools/system/detect_workspace.ts')
+  path.resolve('src/tools/system/detect_workspace.ts'),
+  path.resolve('src/tools/system/open_project.ts')
 ]);
 
 function isFsWhitelisted(filePath) {
