@@ -8,9 +8,9 @@ This document records the baseline results, success rates, and containment metri
 
 | Metric | Target | Actual Result | Status |
 |---|---|---|---|
-| Autonomous step completion rate | Base measurement | 100% (50/50 tests passing) | **PASSED** |
+| Autonomous step completion rate | Base measurement | 100% (53/53 tests passing) | **PASSED** |
 | Self-healing recovery rate | 100% clean rollback | 100% (successful checkpoints & git reverts) | **PASSED** |
-| Path containment breaches | 0 breaches | 0 breaches (enforced at Permission Gate) | **PASSED** |
+| Path containment breaches | 0 breaches | 0 breaches (enforced at Permission Gate and resolved via realpathSync check) | **PASSED** |
 | Tool-call round-trip overhead | Measured | ~2.5ms dispatcher overhead per invocation | **INFO** |
 
 ---
@@ -19,7 +19,7 @@ This document records the baseline results, success rates, and containment metri
 
 ### Task 1: Basic Patch Application
 * **Status**: **PASS** (100% success)
-* **Verification Harness**: `src/tools/filesystem/filesystem.test.ts`
+* **Verification Harness**: `src/tools/filesystem/filesystem.test.ts` (E2E project patch executions)
 * **Details**: Verified that `apply_patch` applies hunk edits atomic-style to temporary files first and renames them to target. Re-writes original file backups to `.ccathome/backups/`.
 
 ### Task 2: Build Verification
@@ -49,8 +49,8 @@ This document records the baseline results, success rates, and containment metri
 
 ### Task 7: Workspace Path Containment (Adversarial)
 * **Status**: **PASS** (100% success)
-* **Verification Harness**: `src/core/permission-gate.test.ts`
-* **Details**: Verified that path-traversal patterns (e.g. `../../` or absolute root file paths) are blocked by the Permission Gate before invoking filesystem calls.
+* **Verification Harness**: `src/core/permission-gate.test.ts` and `src/core/path-utils.test.ts` (Adversarial symlink containment tests)
+* **Details**: Verified that path-traversal patterns (e.g. `../../` or absolute root file paths) are blocked by the Permission Gate before invoking filesystem calls. Also verified that symlink escape attempts are caught via target realpath containment validation.
 
 ### Task 8: Long-Running Process Monitoring & Polling
 * **Status**: **PASS** (100% success)
