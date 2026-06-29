@@ -63,7 +63,7 @@
       "tier": 3,
       "description": "Always blocked (destructive, root traversal, process hijacking, piping to shell, sensitive path hijacking)",
       "patterns": [
-        "\\brm\\s+-[a-zA-Z]*r[a-zA-Z]*\\s+(?:--no-preserve-root\\s+)?/\\s*",
+        "\\brm\\b.*(?:-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)\\b.*\\s+/($|\\s|;|\\||&)",
         "\\.\\./\\.\\./",
         "\\bsudo\\b",
         "\\|\\s*bash\\b",

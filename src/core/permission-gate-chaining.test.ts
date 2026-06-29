@@ -23,6 +23,8 @@ describe("Permission Gate Security Hardening Suite (Findings #1, #2, #4)", () =>
     expect(classifyCommand("echo ok && rm -rf /")).toBe(PermissionTier.TIER_3);
     expect(classifyCommand("npm install; rm -rf / ")).toBe(PermissionTier.TIER_3);
     expect(classifyCommand("node run.js || sudo rm -rf /")).toBe(PermissionTier.TIER_3);
+    expect(classifyCommand("rm --force --recursive /")).toBe(PermissionTier.TIER_3);
+    expect(classifyCommand("echo hello; rm --recursive /")).toBe(PermissionTier.TIER_3);
   });
 
   it("should block sensitive path writes inside the workspace", () => {
