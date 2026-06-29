@@ -3,7 +3,7 @@ import { getCapability, getAllCapabilities } from "./router.js";
 import { PermissionTier, CapabilityName } from "./constants.js";
 
 // Helper to determine if a capability is a Tier A tool
-const TIER_A_TOOLS = new Set<string>([
+export const TIER_A_TOOLS = new Set<string>([
   CapabilityName.INVOKE,
   CapabilityName.LIST_CAPABILITIES,
   CapabilityName.EXECUTE_STEP,
