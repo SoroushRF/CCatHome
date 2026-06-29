@@ -7,12 +7,16 @@ import { config } from "../../core/config.js";
 
 export const detectWorkspaceDefinition: CapabilityDefinition = {
   name: CapabilityName.DETECT_WORKSPACE,
-  description: "Detects the project structure, language, runtime, package manager, and entry points of the current workspace.",
-  inputSchema: z.object({}),
+  description: "Detects the project structure of the workspace, dynamically switching target workspace if path is specified.",
+  inputSchema: z.object({
+    path: z.string().optional().describe("Optional absolute path to dynamically switch the workspace target root to"),
+  }),
   tier: PermissionTier.TIER_0, // Tier 0: allowed (read-only inspect)
 };
 
-export async function detectWorkspaceHandler(): Promise<{
+export async function detectWorkspaceHandler(args: {
+  path?: string;
+}): Promise<{
   success: boolean;
   language: string;
   runtime: string;
@@ -20,6 +24,9 @@ export async function detectWorkspaceHandler(): Promise<{
   entryPoints: string[];
   dependencies: Record<string, string>;
 }> {
+  if (args.path) {
+    config.workspaceRoot = path.resolve(args.path);
+  }
   const root = config.workspaceRoot;
   let language = "unknown";
   let runtime = "unknown";

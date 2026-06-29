@@ -5,6 +5,8 @@ import { z } from "zod";
 import { PermissionTier } from "../../core/constants.js";
 import { listCapabilitiesDefinition, listCapabilitiesHandler } from "./list_capabilities.js";
 import { invokeDefinition, invokeHandler } from "./invoke.js";
+import { detectWorkspaceDefinition, detectWorkspaceHandler } from "./detect_workspace.js";
+import { config } from "../../core/config.js";
 
 describe("Dispatcher Discovery & Routing Suite (Step 3.1)", () => {
   beforeEach(() => {
@@ -93,5 +95,16 @@ describe("Dispatcher Discovery & Routing Suite (Step 3.1)", () => {
     expect(invokeRes.result.success).toBe(false); // but target tool invocation failed
     expect(invokeRes.result.error).toContain("unknown_capability");
     expect(invokeRes.result.error).toContain("remember_secret"); // suggestion
+  });
+
+  it("should allow dynamic workspace path configuration via detect_workspace", async () => {
+    registerCapability(detectWorkspaceDefinition, detectWorkspaceHandler);
+    const origRoot = config.workspaceRoot;
+
+    const res = await invoke("detect_workspace", { path: "C:\\Users\\sorou\\OneDrive\\Desktop" });
+    expect(res.success).toBe(true);
+    expect(config.workspaceRoot).toBe("C:\\Users\\sorou\\OneDrive\\Desktop");
+
+    config.workspaceRoot = origRoot;
   });
 });
