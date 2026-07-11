@@ -1,7 +1,7 @@
 import { z } from "zod";
 import * as crypto from "crypto";
 import { getCapability, getAllCapabilities } from "./router.js";
-import { PermissionTier, CapabilityName, ConfirmationStatus } from "./constants.js";
+import { PermissionTier, CapabilityName, ConfirmationStatus, StepStatus } from "./constants.js";
 import { getDb } from "./db.js";
 import { config } from "./config.js";
 
@@ -89,7 +89,7 @@ export async function invoke(capabilityName: string, args: any): Promise<InvokeR
     }
     return {
       success: false,
-      error: "requires_confirmation",
+      error: StepStatus.REQUIRES_CONFIRMATION,
       tier: definition.tier,
       confirmationId,
     };
