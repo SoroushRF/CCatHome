@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { PermissionTier, CapabilityName } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
-import { runCommandGated } from "../../core/process-runner.js";
+import { assertSafeGitRef, runGit } from "../../core/git-utils.js";
 
 export const gitBranchDefinition: CapabilityDefinition = {
   name: CapabilityName.GIT_BRANCH,
@@ -25,7 +25,8 @@ export async function gitBranchHandler(args: {
 }> {
   try {
     if (args.name) {
-      const res = await runCommandGated(`git branch ${args.name}`);
+      assertSafeGitRef(args.name, "branch");
+      const res = await runGit(["branch", args.name]);
       if (res.exitCode !== 0) {
         return {
           success: false,
@@ -36,8 +37,7 @@ export async function gitBranchHandler(args: {
       return { success: true };
     }
 
-    // Default to listing
-    const res = await runCommandGated("git branch");
+    const res = await runGit(["branch"]);
     if (res.exitCode !== 0) {
       return {
         success: false,

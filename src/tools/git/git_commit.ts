@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { PermissionTier, CapabilityName } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
-import { runCommandGated } from "../../core/process-runner.js";
+import { runGit } from "../../core/git-utils.js";
 
 export const gitCommitDefinition: CapabilityDefinition = {
   name: CapabilityName.GIT_COMMIT,
@@ -23,12 +23,10 @@ export async function gitCommitHandler(args: {
   reason?: string;
 }> {
   try {
-    // Check auto-commit amend conflict
     if (args.amend) {
-      const logRes = await runCommandGated("git log -n 1 --pretty=format:%s");
+      const logRes = await runGit(["log", "-n", "1", "--pretty=format:%s"]);
       if (logRes.exitCode === 0) {
         const lastMsg = logRes.stdout.trim();
-        // If last commit was an auto-commit, reject
         if (lastMsg.startsWith("[ccathome-auto]") || lastMsg.startsWith("[auto-commit]")) {
           return {
             success: false,
@@ -39,13 +37,11 @@ export async function gitCommitHandler(args: {
       }
     }
 
-    // Escape double quotes in commit message
-    const escapedMsg = args.message.replace(/"/g, '\\"');
-    const cmd = args.amend
-      ? `git commit --amend -m "${escapedMsg}"`
-      : `git commit -m "${escapedMsg}"`;
+    const argv = args.amend
+      ? ["commit", "--amend", "-m", args.message]
+      : ["commit", "-m", args.message];
 
-    const res = await runCommandGated(cmd);
+    const res = await runGit(argv);
     if (res.exitCode !== 0) {
       return {
         success: false,
@@ -54,7 +50,7 @@ export async function gitCommitHandler(args: {
       };
     }
 
-    const shaRes = await runCommandGated("git rev-parse HEAD");
+    const shaRes = await runGit(["rev-parse", "HEAD"]);
     return {
       success: true,
       sha: shaRes.stdout.trim(),

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { PermissionTier, CapabilityName } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
-import { runCommandGated } from "../../core/process-runner.js";
+import { assertSafeGitRef, runGit } from "../../core/git-utils.js";
 
 export const gitCheckoutDefinition: CapabilityDefinition = {
   name: CapabilityName.GIT_CHECKOUT,
@@ -21,9 +21,10 @@ export async function gitCheckoutHandler(args: {
   error?: string;
   reason?: string;
 }> {
-  const cmd = args.create ? `git checkout -b ${args.branch}` : `git checkout ${args.branch}`;
   try {
-    const res = await runCommandGated(cmd);
+    assertSafeGitRef(args.branch, "branch");
+    const argv = args.create ? ["checkout", "-b", args.branch] : ["checkout", args.branch];
+    const res = await runGit(argv);
     if (res.exitCode !== 0) {
       return {
         success: false,

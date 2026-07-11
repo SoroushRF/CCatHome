@@ -28,7 +28,6 @@ export async function runCommandUngated(command: string): Promise<GatedRunResult
     child.stdout.on("data", (data) => {
       stdoutChunks.push(data.toString());
     });
-
     child.stderr.on("data", (data) => {
       stderrChunks.push(data.toString());
     });
@@ -68,4 +67,57 @@ export async function runCommandGated(command: string): Promise<GatedRunResult> 
   }
 
   return runCommandUngated(command);
+}
+
+/**
+ * Spawn a binary with argv array (no shell) after gating a display command string.
+ */
+export async function runArgvGated(
+  displayCommand: string,
+  file: string,
+  argv: string[]
+): Promise<GatedRunResult> {
+  const gateResult = classifyAndGate(displayCommand);
+  if (!gateResult.allowed) {
+    if (gateResult.tier === PermissionTier.TIER_2) {
+      throw new RequiresConfirmationError(displayCommand, gateResult.tier);
+    }
+    throw new Error(
+      `Permission denied: Command '${displayCommand}' was rejected by the Permission Gate (Tier ${gateResult.tier})`,
+    );
+  }
+
+  return new Promise((resolve) => {
+    const child = child_process.spawn(file, argv, {
+      shell: false,
+      cwd: config.workspaceRoot,
+      env: scrubEnv(process.env),
+    });
+
+    const stdoutChunks: string[] = [];
+    const stderrChunks: string[] = [];
+
+    child.stdout.on("data", (data) => {
+      stdoutChunks.push(data.toString());
+    });
+    child.stderr.on("data", (data) => {
+      stderrChunks.push(data.toString());
+    });
+
+    child.on("close", (code) => {
+      resolve({
+        stdout: stdoutChunks.join("").trim(),
+        stderr: stderrChunks.join("").trim(),
+        exitCode: code ?? 0,
+      });
+    });
+
+    child.on("error", (err) => {
+      resolve({
+        stdout: stdoutChunks.join("").trim(),
+        stderr: (stderrChunks.join("") + "\n" + err.message).trim(),
+        exitCode: 1,
+      });
+    });
+  });
 }
