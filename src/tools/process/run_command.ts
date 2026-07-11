@@ -164,7 +164,7 @@ export async function runCommandHandler(args: {
           resolved = true;
           upsertCommandLog(CommandStatus.EXITED, child.pid);
           resolve({
-            success: true,
+            success: (code ?? 0) === 0,
             status: "exited",
             stdout: getCappedOutput(stdoutLines),
             stderr: getCappedOutput(stderrLines),
