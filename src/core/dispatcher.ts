@@ -89,8 +89,7 @@ export async function invoke(capabilityName: string, args: any): Promise<InvokeR
         query += " ORDER BY created_at DESC LIMIT 1";
 
         const existing = db.prepare(query).get(...queryParams) as
-          | { id: string; status: string }
-          | undefined;
+          { id: string; status: string } | undefined;
 
         if (existing && existing.status === ConfirmationStatus.APPROVED) {
           db.prepare("DELETE FROM pending_confirmations WHERE id = ?").run(existing.id);

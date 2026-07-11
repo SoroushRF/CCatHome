@@ -153,9 +153,7 @@ function hasEnvExpansion(command: string): boolean {
 
 function hasShellMetacharacters(command: string): boolean {
   return (
-    SHELL_CHAIN_META_RE.test(command) ||
-    hasShellRedirection(command) ||
-    hasEnvExpansion(command)
+    SHELL_CHAIN_META_RE.test(command) || hasShellRedirection(command) || hasEnvExpansion(command)
   );
 }
 
