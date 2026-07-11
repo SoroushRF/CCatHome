@@ -97,10 +97,21 @@ export async function runCommandHandler(args: {
 
   return new Promise((resolve) => {
     let resolved = false;
+    let checkInterval: NodeJS.Timeout | null = null;
 
-    const cleanup = () => {
-      logStream.end();
-    };
+    const endLogStream = (): Promise<void> =>
+      new Promise((resolveEnd) => {
+        if (logStream.writableEnded) {
+          // end() already called; wait for finish if needed
+          if (logStream.writableFinished) {
+            resolveEnd();
+          } else {
+            logStream.once("finish", () => resolveEnd());
+          }
+          return;
+        }
+        logStream.end(() => resolveEnd());
+      });
 
     const getCappedOutput = (arr: string[]) => {
       const full = arr.join("");
@@ -109,37 +120,40 @@ export async function runCommandHandler(args: {
       return `... (truncated ${lines.length - 20} lines) ...\n` + lines.slice(-20).join("\n");
     };
 
-    child.on("exit", (code) => {
+    // Prefer 'close' over 'exit' so all stdio 'data' events are delivered first
+    child.on("close", (code) => {
       didExit = true;
-      cleanup();
+      if (checkInterval) clearInterval(checkInterval);
 
-      if (!resolved) {
-        resolved = true;
-        resolve({
-          success: true,
-          status: "exited",
-          stdout: getCappedOutput(stdoutLines),
-          stderr: getCappedOutput(stderrLines),
-          exitCode: code ?? 0,
-          logId,
-        });
-      }
+      void endLogStream().then(() => {
+        if (!resolved) {
+          resolved = true;
+          resolve({
+            success: true,
+            status: "exited",
+            stdout: getCappedOutput(stdoutLines),
+            stderr: getCappedOutput(stderrLines),
+            exitCode: code ?? 0,
+            logId,
+          });
+        }
+      });
     });
 
     child.on("error", (err) => {
-      cleanup();
-      if (!resolved) {
-        resolved = true;
-        resolve({
-          success: false,
-          error: "spawn_failed",
-          reason: err.message,
-        });
-      }
+      void endLogStream().then(() => {
+        if (!resolved) {
+          resolved = true;
+          resolve({
+            success: false,
+            error: "spawn_failed",
+            reason: err.message,
+          });
+        }
+      });
     });
 
     // Check readiness pattern if provided
-    let checkInterval: NodeJS.Timeout | null = null;
     if (args.readinessPattern) {
       const regex = new RegExp(args.readinessPattern);
       checkInterval = setInterval(() => {
