@@ -20,11 +20,14 @@ export async function gitDiffHandler(args: {
   error?: string;
   reason?: string;
 }> {
+  // Keep --no-pager in argv (defense in depth); classify with a Tier-0 display
+  // string because `git --no-pager diff` does not match `^git diff\b`.
   const argv = args.staged
     ? ["--no-pager", "diff", "--staged"]
     : ["--no-pager", "diff"];
+  const display = args.staged ? "git diff --staged" : "git diff";
   try {
-    const res = await runGit(argv);
+    const res = await runGit(argv, display);
     if (res.exitCode !== 0) {
       return {
         success: false,
