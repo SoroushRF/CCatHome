@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { PermissionTier, CapabilityName } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
-import { runCommandGated } from "../../core/process-runner.js";
+import { runGit } from "../../core/git-utils.js";
 
 export const gitDiffDefinition: CapabilityDefinition = {
   name: CapabilityName.GIT_DIFF,
@@ -20,9 +20,11 @@ export async function gitDiffHandler(args: {
   error?: string;
   reason?: string;
 }> {
-  const cmd = args.staged ? "git diff --staged" : "git diff";
+  const argv = args.staged
+    ? ["--no-pager", "diff", "--staged"]
+    : ["--no-pager", "diff"];
   try {
-    const res = await runCommandGated(cmd);
+    const res = await runGit(argv);
     if (res.exitCode !== 0) {
       return {
         success: false,
