@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
 import { fileURLToPath } from "url";
-import { PermissionTier } from "./constants.js";
+import { PermissionTier, ConfirmationStatus } from "./constants.js";
 import { getDb } from "./db.js";
 import { config } from "./config.js";
 
@@ -143,18 +143,18 @@ export function classifyAndGate(command: string): { allowed: boolean; tier: Perm
 
         const existing = db.prepare(query).get(...queryParams) as { status: string } | undefined;
 
-        if (existing && existing.status === "approved") {
+        if (existing && existing.status === ConfirmationStatus.APPROVED) {
           allowed = true;
           return;
         }
 
         // If not approved and not already pending, insert a pending confirmation record
-        if (!existing || existing.status === "rejected") {
+        if (!existing || existing.status === ConfirmationStatus.REJECTED) {
           const id = crypto.randomUUID();
           db.prepare(`
             INSERT INTO pending_confirmations (id, step_id, command, status)
-            VALUES (?, ?, ?, 'pending')
-          `).run(id, config.activeStepId || null, command);
+            VALUES (?, ?, ?, ?)
+          `).run(id, config.activeStepId || null, command, ConfirmationStatus.PENDING);
         }
       })();
 
