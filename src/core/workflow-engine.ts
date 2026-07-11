@@ -69,11 +69,7 @@ export function validateWorkflowDAG(steps: WorkflowStepInput[]): void {
  * Inserts a new workflow and its steps into the SQLite database.
  * Throws if the steps do not form a valid DAG.
  */
-export function saveWorkflow(
-  workflowId: string,
-  name: string,
-  steps: WorkflowStepInput[]
-): void {
+export function saveWorkflow(workflowId: string, name: string, steps: WorkflowStepInput[]): void {
   validateWorkflowDAG(steps);
 
   const db = getDb();
@@ -117,9 +113,7 @@ export function areStepDependenciesMet(workflowId: string, stepId: string): bool
   }
 
   const completed = db
-    .prepare(
-      `SELECT id FROM workflow_steps WHERE workflow_id = ? AND status = ?`
-    )
+    .prepare(`SELECT id FROM workflow_steps WHERE workflow_id = ? AND status = ?`)
     .all(workflowId, StepStatus.COMPLETED) as { id: string }[];
   const completedIds = new Set(completed.map((s) => s.id));
   return deps.every((dep) => completedIds.has(dep));
@@ -133,12 +127,16 @@ export function getRunnableSteps(workflowId: string): string[] {
   const db = getDb();
 
   // Get all steps in the workflow
-  const steps = db.prepare(`
+  const steps = db
+    .prepare(
+      `
     SELECT id, depends_on, status FROM workflow_steps WHERE workflow_id = ?
-  `).all(workflowId) as { id: string; depends_on: string; status: string }[];
+  `,
+    )
+    .all(workflowId) as { id: string; depends_on: string; status: string }[];
 
   const completed = new Set<string>(
-    steps.filter((s) => s.status === StepStatus.COMPLETED).map((s) => s.id)
+    steps.filter((s) => s.status === StepStatus.COMPLETED).map((s) => s.id),
   );
 
   const runnable: string[] = [];

@@ -71,11 +71,15 @@ export async function getWorkflowStateHandler(args: {
 
   try {
     if (args.stepId) {
-      const stepRow = db.prepare(`
+      const stepRow = db
+        .prepare(
+          `
         SELECT id, workflow_id, title, depends_on, status, retry_count, full_log, summary
         FROM workflow_steps
         WHERE id = ?
-      `).get(args.stepId) as StepDbRow | undefined;
+      `,
+        )
+        .get(args.stepId) as StepDbRow | undefined;
 
       if (!stepRow) {
         return {
@@ -101,9 +105,13 @@ export async function getWorkflowStateHandler(args: {
     }
 
     if (args.workflowId) {
-      const workflowRow = db.prepare(`
+      const workflowRow = db
+        .prepare(
+          `
         SELECT id, name, status FROM workflows WHERE id = ?
-      `).get(args.workflowId) as WorkflowDbRow | undefined;
+      `,
+        )
+        .get(args.workflowId) as WorkflowDbRow | undefined;
 
       if (!workflowRow) {
         return {
@@ -113,11 +121,15 @@ export async function getWorkflowStateHandler(args: {
         };
       }
 
-      const stepRows = db.prepare(`
+      const stepRows = db
+        .prepare(
+          `
         SELECT id, title, depends_on, status, retry_count, full_log
         FROM workflow_steps
         WHERE workflow_id = ?
-      `).all(args.workflowId) as StepDbRow[];
+      `,
+        )
+        .all(args.workflowId) as StepDbRow[];
 
       return {
         success: true,
@@ -138,7 +150,9 @@ export async function getWorkflowStateHandler(args: {
     }
 
     // List all workflows if no ID is specified
-    const allWorkflows = db.prepare("SELECT id, name, status FROM workflows").all() as WorkflowDbRow[];
+    const allWorkflows = db
+      .prepare("SELECT id, name, status FROM workflows")
+      .all() as WorkflowDbRow[];
     return {
       success: true,
       workflows: allWorkflows,

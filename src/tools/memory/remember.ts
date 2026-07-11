@@ -14,10 +14,7 @@ export const rememberDefinition: CapabilityDefinition = {
   tier: PermissionTier.TIER_1, // Tier 1: Workspace writes / edits
 };
 
-export async function rememberHandler(args: {
-  content: string;
-  tags?: string[];
-}): Promise<{
+export async function rememberHandler(args: { content: string; tags?: string[] }): Promise<{
   success: boolean;
   memoryId?: string;
   error?: string;
@@ -28,10 +25,12 @@ export async function rememberHandler(args: {
 
   try {
     const tagsJson = JSON.stringify(args.tags || []);
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO project_memory (key, value, category)
       VALUES (?, ?, ?)
-    `).run(memoryId, args.content, tagsJson);
+    `,
+    ).run(memoryId, args.content, tagsJson);
 
     return {
       success: true,

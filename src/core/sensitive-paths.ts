@@ -13,7 +13,10 @@ export function assertNotSensitiveWorkspacePath(absPath: string): void {
   if (path.basename(normalized) === "permission-rules.json") {
     throw new Error("sensitive_path_blocked: writing permission-rules.json is not allowed");
   }
-  if (normalized.includes(`${path.sep}.git${path.sep}hooks${path.sep}`) || normalized.includes(`${path.sep}.git/hooks${path.sep}`)) {
+  if (
+    normalized.includes(`${path.sep}.git${path.sep}hooks${path.sep}`) ||
+    normalized.includes(`${path.sep}.git/hooks${path.sep}`)
+  ) {
     throw new Error("sensitive_path_blocked: writing .git/hooks is not allowed");
   }
   // Also catch forward-slash form on all platforms
@@ -21,7 +24,10 @@ export function assertNotSensitiveWorkspacePath(absPath: string): void {
   if (asPosix.includes("/.git/hooks/")) {
     throw new Error("sensitive_path_blocked: writing .git/hooks is not allowed");
   }
-  if (/\.sqlite$/i.test(path.basename(normalized)) || /ccathome\.db$/i.test(path.basename(normalized))) {
+  if (
+    /\.sqlite$/i.test(path.basename(normalized)) ||
+    /ccathome\.db$/i.test(path.basename(normalized))
+  ) {
     throw new Error("sensitive_path_blocked: writing sqlite database files is not allowed");
   }
 }

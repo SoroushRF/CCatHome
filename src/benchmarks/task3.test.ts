@@ -24,7 +24,7 @@ describe("benchmark task 3 test suite execution", () => {
     fs.writeFileSync(
       path.join(DIR, "exec.js"),
       "console.log('PASS src/sum.test.js'); process.exit(0);",
-      "utf-8"
+      "utf-8",
     );
     fs.writeFileSync(path.join(DIR, "check.js"), "process.exit(0);", "utf-8");
     approveCommandForTests("node exec.js", "test");

@@ -17,10 +17,7 @@ export const moveFileDefinition: CapabilityDefinition = {
   tier: PermissionTier.TIER_1, // Tier 1: Workspace writes
 };
 
-export async function moveFileHandler(args: {
-  source: string;
-  destination: string;
-}): Promise<{
+export async function moveFileHandler(args: { source: string; destination: string }): Promise<{
   success: boolean;
   error?: string;
   reason?: string;

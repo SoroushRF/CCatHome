@@ -133,7 +133,9 @@ describe("Sandboxed Script Runner Suite", () => {
       });
       // Either residual escape returns data (documented ADR 0008 risk) or
       // script_execution_failed — never silent success without result shape.
-      expect(res.result.success === true || res.result.error === "script_execution_failed").toBe(true);
+      expect(res.result.success === true || res.result.error === "script_execution_failed").toBe(
+        true,
+      );
       if (res.result.success === false) {
         expect(res.result.error).toBe("script_execution_failed");
       }
@@ -157,5 +159,4 @@ describe("Sandboxed Script Runner Suite", () => {
       expect(String(res.result.reason || "")).toMatch(/timed out|Script timed out|timeout/i);
     });
   });
-
 });

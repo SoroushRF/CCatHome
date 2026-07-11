@@ -25,12 +25,12 @@ describe("benchmark task 4 recovery compile fix", () => {
     fs.writeFileSync(
       path.join(DIR, "check.js"),
       "import fs from 'fs'; process.exit(fs.existsSync('fixed.txt')?0:1);",
-      "utf-8"
+      "utf-8",
     );
     fs.writeFileSync(
       path.join(DIR, "recover.js"),
       "import fs from 'fs'; fs.writeFileSync('fixed.txt','ok');",
-      "utf-8"
+      "utf-8",
     );
     approveCommandForTests("node exec.js", "fix");
     approveCommandForTests("node check.js", "fix");

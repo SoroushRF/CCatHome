@@ -45,9 +45,7 @@ describe("adversarial path containment (R7.3.1)", () => {
     if (read.result.success) {
       expect(String(read.result.content || "")).not.toMatch(/root:/);
     } else {
-      expect(["invalid_path", "read_failed", "file_not_found"]).toContain(
-        read.result.error
-      );
+      expect(["invalid_path", "read_failed", "file_not_found"]).toContain(read.result.error);
     }
   });
 

@@ -17,7 +17,7 @@ describe("benchmark task 1 apply_patch", () => {
     fs.writeFileSync(
       path.join(DIR, "sum.js"),
       "export function sum(a, b) { return a + b; }\n",
-      "utf-8"
+      "utf-8",
     );
 
     const patch = `@@ -1,1 +1,3 @@

@@ -13,10 +13,7 @@ export const gitBranchDefinition: CapabilityDefinition = {
   tier: PermissionTier.TIER_0, // Tier 0: Always allowed reads
 };
 
-export async function gitBranchHandler(args: {
-  name?: string;
-  list?: boolean;
-}): Promise<{
+export async function gitBranchHandler(args: { name?: string; list?: boolean }): Promise<{
   success: boolean;
   branches?: string[];
   current?: string;
@@ -47,7 +44,11 @@ export async function gitBranchHandler(args: {
     }
 
     const branches = res.stdout.split(/\r?\n/).map((b) => b.replace(/^\*\s+/, "").trim());
-    const current = res.stdout.split(/\r?\n/).find((b) => b.startsWith("*"))?.replace(/^\*\s+/, "").trim();
+    const current = res.stdout
+      .split(/\r?\n/)
+      .find((b) => b.startsWith("*"))
+      ?.replace(/^\*\s+/, "")
+      .trim();
 
     return {
       success: true,

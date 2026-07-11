@@ -8,7 +8,8 @@ import { resolveSafePath } from "../../core/path-utils.js";
 
 export const searchFilesDefinition: CapabilityDefinition = {
   name: CapabilityName.SEARCH_FILES,
-  description: "Searches for a text query inside all files recursively in the workspace (ignores git and node_modules).",
+  description:
+    "Searches for a text query inside all files recursively in the workspace (ignores git and node_modules).",
   inputSchema: z.object({
     query: z.string().describe("The text query or term to search for"),
     extension: z.string().optional().describe("Optional file extension filter (e.g. '.ts', '.md')"),
@@ -22,10 +23,7 @@ interface SearchMatch {
   content: string;
 }
 
-export async function searchFilesHandler(args: {
-  query: string;
-  extension?: string;
-}): Promise<{
+export async function searchFilesHandler(args: { query: string; extension?: string }): Promise<{
   success: boolean;
   matches?: SearchMatch[];
   error?: string;
@@ -36,14 +34,7 @@ export async function searchFilesHandler(args: {
   const lowercaseQuery = args.query.toLowerCase();
 
   // Ignores list
-  const ignoredDirs = new Set([
-    ".git",
-    "node_modules",
-    ".ccathome",
-    ".agent",
-    ".agents",
-    "dist",
-  ]);
+  const ignoredDirs = new Set([".git", "node_modules", ".ccathome", ".agent", ".agents", "dist"]);
 
   function walk(dir: string) {
     let files: string[];

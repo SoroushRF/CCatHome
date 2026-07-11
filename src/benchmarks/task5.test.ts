@@ -25,12 +25,12 @@ describe("benchmark task 5 recovery test fix", () => {
     fs.writeFileSync(
       path.join(DIR, "check.js"),
       "import fs from 'fs'; process.exit(fs.existsSync('tests-green')?0:1);",
-      "utf-8"
+      "utf-8",
     );
     fs.writeFileSync(
       path.join(DIR, "recover.js"),
       "import fs from 'fs'; fs.writeFileSync('tests-green','1');",
-      "utf-8"
+      "utf-8",
     );
     approveCommandForTests("node exec.js", "tfix");
     approveCommandForTests("node check.js", "tfix");

@@ -13,14 +13,15 @@ export const checkpointDefinition: CapabilityDefinition = {
   name: CapabilityName.CHECKPOINT,
   description: "Creates a restorable snapshot of git state and uncommitted/untracked files.",
   inputSchema: z.object({
-    workflowStepId: z.string().optional().describe("Optional workflow step ID to associate with this checkpoint"),
+    workflowStepId: z
+      .string()
+      .optional()
+      .describe("Optional workflow step ID to associate with this checkpoint"),
   }),
   tier: PermissionTier.TIER_1, // Tier 1: Workspace writes / edits
 };
 
-export async function checkpointHandler(args: {
-  workflowStepId?: string;
-}): Promise<{
+export async function checkpointHandler(args: { workflowStepId?: string }): Promise<{
   success: boolean;
   checkpointId?: string;
   gitSha?: string;
@@ -59,17 +60,27 @@ export async function checkpointHandler(args: {
       isDeleted: boolean;
     }[] = [];
 
-    const lines = statusRes.stdout.split(/\r?\n/).filter(line => line.trim().length > 0);
-    const checkpointBackupsDir = path.join(config.workspaceRoot, ".ccathome", "backups", "checkpoints", checkpointId);
+    const lines = statusRes.stdout.split(/\r?\n/).filter((line) => line.trim().length > 0);
+    const checkpointBackupsDir = path.join(
+      config.workspaceRoot,
+      ".ccathome",
+      "backups",
+      "checkpoints",
+      checkpointId,
+    );
 
     for (const line of lines) {
       const code = line.slice(0, 2);
       let relativePath = line.slice(2).trim().replace(/^"|"$/g, "");
       // git status rename forms: "R  old -> new" / "RM old -> new"
       if (/\s->\s/.test(relativePath)) {
-        relativePath = relativePath.split(/\s->\s/).pop()!.replace(/^"|"$/g, "").trim();
+        relativePath = relativePath
+          .split(/\s->\s/)
+          .pop()!
+          .replace(/^"|"$/g, "")
+          .trim();
       }
-      
+
       const isUntracked = code.includes("??");
       const isDeleted = code.includes("D") && !code.includes("R");
 
@@ -109,7 +120,7 @@ export async function checkpointHandler(args: {
         // Copy file to backup folder
         const backupFilePath = path.join(checkpointBackupsDir, relativePath);
         fs.mkdirSync(path.dirname(backupFilePath), { recursive: true });
-        
+
         if (fs.existsSync(absolutePath)) {
           const stat = fs.statSync(absolutePath);
           if (stat.isDirectory()) {
@@ -128,10 +139,12 @@ export async function checkpointHandler(args: {
     }
 
     // 3. Save to database
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO checkpoints (id, workflow_step_id, git_sha, backup_meta)
       VALUES (?, ?, ?, ?)
-    `).run(checkpointId, args.workflowStepId || null, gitSha, JSON.stringify(backupMeta));
+    `,
+    ).run(checkpointId, args.workflowStepId || null, gitSha, JSON.stringify(backupMeta));
 
     return {
       success: true,

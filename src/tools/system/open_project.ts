@@ -7,16 +7,15 @@ import { detectWorkspaceHandler } from "./detect_workspace.js";
 
 export const openProjectDefinition: CapabilityDefinition = {
   name: CapabilityName.OPEN_PROJECT,
-  description: "Opens a project directory, dynamically switching the active workspace target root to the specified absolute path.",
+  description:
+    "Opens a project directory, dynamically switching the active workspace target root to the specified absolute path.",
   inputSchema: z.object({
     path: z.string().describe("The absolute path of the local project directory to open"),
   }),
   tier: PermissionTier.TIER_0, // Tier 0: allowed so the agent can switch workspaces dynamically
 };
 
-export async function openProjectHandler(args: {
-  path: string;
-}): Promise<{
+export async function openProjectHandler(args: { path: string }): Promise<{
   success: boolean;
   message?: string;
   projectInfo?: any;

@@ -79,8 +79,9 @@ function runMigrations(db: Database.Database): void {
     return;
   }
 
-  const files = fs.readdirSync(migrationsDir)
-    .filter(file => file.endsWith(".sql"))
+  const files = fs
+    .readdirSync(migrationsDir)
+    .filter((file) => file.endsWith(".sql"))
     .sort();
 
   for (const file of files) {

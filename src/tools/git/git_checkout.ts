@@ -13,10 +13,7 @@ export const gitCheckoutDefinition: CapabilityDefinition = {
   tier: PermissionTier.TIER_1, // Tier 1: Workspace writes / modifications
 };
 
-export async function gitCheckoutHandler(args: {
-  branch: string;
-  create?: boolean;
-}): Promise<{
+export async function gitCheckoutHandler(args: { branch: string; create?: boolean }): Promise<{
   success: boolean;
   error?: string;
   reason?: string;

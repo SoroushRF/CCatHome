@@ -26,7 +26,9 @@ export function tailLines(text: string, maxLines = 20): string {
   if (lines.length <= maxLines) {
     return text;
   }
-  return `... (truncated ${lines.length - maxLines} lines) ...\n` + lines.slice(-maxLines).join("\n");
+  return (
+    `... (truncated ${lines.length - maxLines} lines) ...\n` + lines.slice(-maxLines).join("\n")
+  );
 }
 
 /**

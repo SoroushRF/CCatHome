@@ -1,11 +1,7 @@
 import { describe, it, expect, afterEach, beforeEach } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
-import {
-  startDashboardServer,
-  stopDashboardServer,
-  escapeHtml,
-} from "../core/dashboard-server.js";
+import { startDashboardServer, stopDashboardServer, escapeHtml } from "../core/dashboard-server.js";
 import { config } from "../core/config.js";
 import { closeDb, getDb } from "../core/db.js";
 import { ConfirmationStatus } from "../core/constants.js";
@@ -47,7 +43,7 @@ describe("adversarial dashboard XSS (R7.3.5)", () => {
     const evil = `<script>alert(1)</script>`;
     getDb()
       .prepare(
-        `INSERT INTO pending_confirmations (id, step_id, command, status) VALUES (?, NULL, ?, ?)`
+        `INSERT INTO pending_confirmations (id, step_id, command, status) VALUES (?, NULL, ?, ?)`,
       )
       .run(id, evil, ConfirmationStatus.PENDING);
 

@@ -35,14 +35,14 @@ describe("Git Capabilities Suite", () => {
 
     // Initialize temporary git repo in the test directory
     await runCommandGated("git init");
-    await runCommandGated("git config user.email \"test@ccathome.com\"");
-    await runCommandGated("git config user.name \"Test CCatHome\"");
+    await runCommandGated('git config user.email "test@ccathome.com"');
+    await runCommandGated('git config user.name "Test CCatHome"');
     await runCommandGated("git checkout -b main");
 
     // Create a commit so HEAD exists (otherwise many git tools fail)
     fs.writeFileSync(path.join(TEST_DIR, "init.txt"), "hello", "utf-8");
     await runCommandGated("git add init.txt");
-    await runCommandGated("git commit -m \"Initial commit\"");
+    await runCommandGated('git commit -m "Initial commit"');
 
     // Register capabilities
     registerCapability(gitDiffDefinition, gitDiffHandler);
@@ -104,7 +104,7 @@ describe("Git Capabilities Suite", () => {
     // Create an auto-commit
     fs.writeFileSync(path.join(TEST_DIR, "init.txt"), "auto modification", "utf-8");
     await runCommandGated("git add init.txt");
-    await runCommandGated("git commit -m \"[ccathome-auto] step completed\"");
+    await runCommandGated('git commit -m "[ccathome-auto] step completed"');
 
     // Attempt to amend via git_commit capability
     const res = await invoke("git_commit", {

@@ -13,9 +13,7 @@ export const killProcessDefinition: CapabilityDefinition = {
   tier: PermissionTier.TIER_1, // Tier 1: Workspace writes / edits
 };
 
-export async function killProcessHandler(args: {
-  pid: number;
-}): Promise<{
+export async function killProcessHandler(args: { pid: number }): Promise<{
   success: boolean;
   error?: string;
   reason?: string;

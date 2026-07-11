@@ -26,7 +26,7 @@ describe("benchmark task 6 branch isolation", () => {
     fs.writeFileSync(
       path.join(DIR, "exec.js"),
       "import fs from 'fs'; fs.writeFileSync('out.txt', 'ok', 'utf-8');\n",
-      "utf-8"
+      "utf-8",
     );
     fs.writeFileSync(path.join(DIR, "check.js"), "process.exit(0);\n", "utf-8");
     approveCommandForTests("node exec.js", "s1");

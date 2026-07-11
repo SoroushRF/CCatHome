@@ -12,9 +12,7 @@ export const gitDiffDefinition: CapabilityDefinition = {
   tier: PermissionTier.TIER_0, // Tier 0: Always allowed reads/inspects
 };
 
-export async function gitDiffHandler(args: {
-  staged?: boolean;
-}): Promise<{
+export async function gitDiffHandler(args: { staged?: boolean }): Promise<{
   success: boolean;
   diff?: string;
   error?: string;
@@ -22,9 +20,7 @@ export async function gitDiffHandler(args: {
 }> {
   // Keep --no-pager in argv (defense in depth); classify with a Tier-0 display
   // string because `git --no-pager diff` does not match `^git diff\b`.
-  const argv = args.staged
-    ? ["--no-pager", "diff", "--staged"]
-    : ["--no-pager", "diff"];
+  const argv = args.staged ? ["--no-pager", "diff", "--staged"] : ["--no-pager", "diff"];
   const display = args.staged ? "git diff --staged" : "git diff";
   try {
     const res = await runGit(argv, display);

@@ -97,7 +97,7 @@ describe("Filesystem Capabilities Suite", () => {
 
   it("should reject path traversal in apply_patch and read_file", async () => {
     const patch = `@@ -1 +1 @@\n-content\n+new content`;
-    
+
     const patchRes = await invoke("apply_patch", {
       path: "../../escaped.txt",
       patch,
@@ -273,9 +273,8 @@ describe("Filesystem Capabilities Suite", () => {
       });
       expect(res.result.error).toBe("sha_mismatch");
       expect(res.result.currentSha).toBe(
-        crypto.createHash("sha256").update("content", "utf-8").digest("hex")
+        crypto.createHash("sha256").update("content", "utf-8").digest("hex"),
       );
     });
   });
-
 });

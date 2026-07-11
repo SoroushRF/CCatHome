@@ -7,7 +7,10 @@ import { runCommandGated } from "../core/process-runner.js";
 import { saveWorkflow } from "../core/workflow-engine.js";
 import { executeStepDefinition, executeStepHandler } from "../tools/workflow/execute_step.js";
 import { checkpointDefinition, checkpointHandler } from "../tools/checkpoint/checkpoint.js";
-import { restoreCheckpointDefinition, restoreCheckpointHandler } from "../tools/checkpoint/restore_checkpoint.js";
+import {
+  restoreCheckpointDefinition,
+  restoreCheckpointHandler,
+} from "../tools/checkpoint/restore_checkpoint.js";
 import { approveCommandForTests } from "../test/approve-command.js";
 import { cleanupWorkspace, makeTempWorkspace, resetGitWorkspace } from "./helpers.js";
 
@@ -34,7 +37,7 @@ describe("benchmark task 10 checkpoint rollback", () => {
     fs.writeFileSync(
       path.join(DIR, "exec.js"),
       "import fs from 'fs'; fs.writeFileSync('tracked.txt', 'dirty\\n');",
-      "utf-8"
+      "utf-8",
     );
     fs.writeFileSync(path.join(DIR, "check.js"), "process.exit(1);", "utf-8");
     approveCommandForTests("node exec.js", "fail");

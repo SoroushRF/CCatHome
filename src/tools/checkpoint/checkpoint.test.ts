@@ -30,15 +30,15 @@ describe("Checkpoint & Rollback Subsystem Suite", () => {
 
     // Initialize clean git repository
     await runCommandGated("git init");
-    await runCommandGated("git config user.email \"test@ccathome.com\"");
-    await runCommandGated("git config user.name \"Test CCatHome\"");
+    await runCommandGated('git config user.email "test@ccathome.com"');
+    await runCommandGated('git config user.name "Test CCatHome"');
     await runCommandGated("git checkout -b main");
 
     // Write initial source file
     fs.writeFileSync(path.join(TEST_DIR, "file1.txt"), "original content 1\n", "utf-8");
     fs.writeFileSync(path.join(TEST_DIR, "file2.txt"), "original content 2\n", "utf-8");
     await runCommandGated("git add file1.txt file2.txt");
-    await runCommandGated("git commit -m \"Initial commit\"");
+    await runCommandGated('git commit -m "Initial commit"');
 
     // Register checkpoint capabilities
     registerCapability(checkpointDefinition, checkpointHandler);
@@ -127,7 +127,7 @@ describe("Checkpoint & Rollback Subsystem Suite", () => {
       meta[0].backupPath = ".ccathome/backups/checkpoints/missing/nope.txt";
       db.prepare("UPDATE checkpoints SET backup_meta = ? WHERE id = ?").run(
         JSON.stringify(meta),
-        checkpointId
+        checkpointId,
       );
     }
 
@@ -155,5 +155,4 @@ describe("Checkpoint & Rollback Subsystem Suite", () => {
       expect(["git_reset_failed", "restore_failed"]).toContain(restoreRes.result.error);
     });
   });
-
 });

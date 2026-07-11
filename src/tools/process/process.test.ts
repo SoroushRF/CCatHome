@@ -166,5 +166,4 @@ describe("Process Capabilities Suite", () => {
       fs.rmSync(blocker, { force: true });
     });
   });
-
 });

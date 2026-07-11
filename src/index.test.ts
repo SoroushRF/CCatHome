@@ -32,7 +32,7 @@ describe("Stdio MCP Server Configuration & Binding Suite (Step 3.5 E2E)", () => 
             return {
               content: [{ type: "text", text: `Mock executed ${cap.definition.name}` }],
             };
-          }
+          },
         );
       }
     }

@@ -34,9 +34,11 @@ describe("Database & Migrations Suite", () => {
   it("should initialize database and apply production migrations", () => {
     // 1. Open db and trigger migrations
     const db = getDb();
-    
+
     // Verify workflows table was created
-    const stmt = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='workflows'");
+    const stmt = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='workflows'",
+    );
     const table = stmt.get() as { name: string } | undefined;
     expect(table).toBeDefined();
     expect(table?.name).toBe("workflows");
@@ -50,7 +52,7 @@ describe("Database & Migrations Suite", () => {
     expect(logStmt.get("0004-step-summary.sql")).toBeDefined();
     const idx = db
       .prepare(
-        "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_workflow_steps_workflow_id_id'"
+        "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_workflow_steps_workflow_id_id'",
       )
       .get() as { name: string } | undefined;
     expect(idx?.name).toBe("idx_workflow_steps_workflow_id_id");
@@ -58,8 +60,12 @@ describe("Database & Migrations Suite", () => {
     expect(cols.some((c) => c.name === "summary")).toBe(true);
 
     // 2. Test insert and query on workflows table
-    db.prepare("INSERT INTO workflows (id, name, status) VALUES (?, ?, 'pending')").run("wf1", "Test Workflow");
-    const wf = db.prepare("SELECT name FROM workflows WHERE id = ?").get("wf1") as { name: string } | undefined;
+    db.prepare("INSERT INTO workflows (id, name, status) VALUES (?, ?, 'pending')").run(
+      "wf1",
+      "Test Workflow",
+    );
+    const wf = db.prepare("SELECT name FROM workflows WHERE id = ?").get("wf1") as
+      { name: string } | undefined;
     expect(wf?.name).toBe("Test Workflow");
   });
 });

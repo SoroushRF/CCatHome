@@ -49,7 +49,8 @@ describe("Memory Subsystem Suite", () => {
     expect(m1.result.memoryId).toBeDefined();
 
     const m2 = await invoke("remember", {
-      content: "Database queries must always utilize parameterized queries to prevent SQL injections.",
+      content:
+        "Database queries must always utilize parameterized queries to prevent SQL injections.",
       tags: ["database", "sqlite", "security"],
     });
     expect(m2.success).toBe(true);

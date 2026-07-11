@@ -2,10 +2,7 @@ import * as http from "http";
 import * as crypto from "crypto";
 import { getDb } from "./db.js";
 import { ConfirmationStatus } from "./constants.js";
-import {
-  listPendingConfirmations,
-  resolvePendingConfirmation,
-} from "./confirmations.js";
+import { listPendingConfirmations, resolvePendingConfirmation } from "./confirmations.js";
 
 let serverInstance: http.Server | null = null;
 let pollInterval: NodeJS.Timeout | null = null;
@@ -345,8 +342,7 @@ export function startDashboardServer(port = 3141): Promise<DashboardStartResult>
       const cookies = parseCookies(req.headers.cookie);
       const cookieToken = cookies["ccathome_token"];
       const isAuthenticated =
-        (queryToken && queryToken === activeToken) ||
-        (cookieToken && cookieToken === activeToken);
+        (queryToken && queryToken === activeToken) || (cookieToken && cookieToken === activeToken);
 
       if (!isAuthenticated) {
         res.writeHead(401, { "Content-Type": "text/plain" });
@@ -357,18 +353,21 @@ export function startDashboardServer(port = 3141): Promise<DashboardStartResult>
       if (queryToken && queryToken === activeToken) {
         res.setHeader(
           "Set-Cookie",
-          `ccathome_token=${activeToken}; HttpOnly; Path=/; SameSite=Strict`
+          `ccathome_token=${activeToken}; HttpOnly; Path=/; SameSite=Strict`,
         );
       }
 
-      if (req.method === "GET" && (parsedUrl.pathname === "/" || parsedUrl.pathname === "/index.html")) {
+      if (
+        req.method === "GET" &&
+        (parsedUrl.pathname === "/" || parsedUrl.pathname === "/index.html")
+      ) {
         res.writeHead(200, { "Content-Type": "text/html" });
         res.end(HTML_CONTENT);
         return;
       }
 
       const confirmMatch = parsedUrl.pathname.match(
-        /^\/api\/confirmations\/([^/]+)\/(approve|reject)$/
+        /^\/api\/confirmations\/([^/]+)\/(approve|reject)$/,
       );
       if (req.method === "POST" && confirmMatch) {
         const id = decodeURIComponent(confirmMatch[1]);
@@ -399,7 +398,7 @@ export function startDashboardServer(port = 3141): Promise<DashboardStartResult>
             if (workflow) {
               steps = db
                 .prepare(
-                  `SELECT id, title, status, retry_count, full_log FROM workflow_steps WHERE workflow_id = ?`
+                  `SELECT id, title, status, retry_count, full_log FROM workflow_steps WHERE workflow_id = ?`,
                 )
                 .all(workflow.id);
             }
@@ -419,11 +418,11 @@ export function startDashboardServer(port = 3141): Promise<DashboardStartResult>
                 checkpoints,
                 processes,
                 confirmations,
-              })}\n\n`
+              })}\n\n`,
             );
           } catch (_err) {
             res.write(
-              `data: ${JSON.stringify({ steps: [], checkpoints: [], processes: [], confirmations: [] })}\n\n`
+              `data: ${JSON.stringify({ steps: [], checkpoints: [], processes: [], confirmations: [] })}\n\n`,
             );
           }
         };

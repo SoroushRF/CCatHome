@@ -36,7 +36,7 @@ describe("adversarial HITL (R7.3.4)", () => {
     const id = crypto.randomUUID();
     getDb()
       .prepare(
-        `INSERT INTO pending_confirmations (id, step_id, command, status) VALUES (?, NULL, ?, ?)`
+        `INSERT INTO pending_confirmations (id, step_id, command, status) VALUES (?, NULL, ?, ?)`,
       )
       .run(id, "git push", ConfirmationStatus.PENDING);
 

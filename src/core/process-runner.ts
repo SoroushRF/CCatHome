@@ -81,7 +81,7 @@ export async function runCommandGated(command: string): Promise<GatedRunResult> 
 export async function runArgvGated(
   displayCommand: string,
   file: string,
-  argv: string[]
+  argv: string[],
 ): Promise<GatedRunResult> {
   const gateResult = classifyAndGate(displayCommand);
   if (!gateResult.allowed) {

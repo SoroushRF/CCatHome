@@ -52,12 +52,14 @@ export async function main() {
             content: [
               {
                 type: "text",
-                text: typeof res.result === "string" ? res.result : JSON.stringify(res.result, null, 2),
+                text:
+                  typeof res.result === "string" ? res.result : JSON.stringify(res.result, null, 2),
               },
             ],
-            structuredContent: typeof res.result === "object" && res.result !== null ? res.result : undefined,
+            structuredContent:
+              typeof res.result === "object" && res.result !== null ? res.result : undefined,
           };
-        }
+        },
       );
     }
   }

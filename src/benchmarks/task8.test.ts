@@ -1,12 +1,13 @@
 import { describe, it, expect, afterEach } from "vitest";
-import * as fs from "fs";
-import * as path from "path";
 import { registerCapability } from "../core/router.js";
 import { invoke } from "../core/dispatcher.js";
 import { killAllProcesses } from "../core/process-registry.js";
-import { closeDb, getDb } from "../core/db.js";
+import { getDb } from "../core/db.js";
 import { runCommandDefinition, runCommandHandler } from "../tools/process/run_command.js";
-import { readProcessOutputDefinition, readProcessOutputHandler } from "../tools/process/read_process_output.js";
+import {
+  readProcessOutputDefinition,
+  readProcessOutputHandler,
+} from "../tools/process/read_process_output.js";
 import { killProcessDefinition, killProcessHandler } from "../tools/process/kill_process.js";
 import { approveCommandForTests } from "../test/approve-command.js";
 import { cleanupWorkspace, makeTempWorkspace, resetGitWorkspace } from "./helpers.js";

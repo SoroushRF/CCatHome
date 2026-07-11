@@ -68,7 +68,9 @@ function loadRulesConfig(): RulesConfig {
   }
 
   // Log a loud warning if fallback is reached
-  console.error("WARNING: permission-rules.json config file not found. Falling back to strict default ruleset.");
+  console.error(
+    "WARNING: permission-rules.json config file not found. Falling back to strict default ruleset.",
+  );
 
   // Fallback default rules if loading fails
   return {
@@ -176,8 +178,7 @@ export function classifyAndGate(command: string): { allowed: boolean; tier: Perm
         query += " ORDER BY created_at DESC LIMIT 1";
 
         const existing = db.prepare(query).get(...queryParams) as
-          | { id: string; status: string }
-          | undefined;
+          { id: string; status: string } | undefined;
 
         if (existing && existing.status === ConfirmationStatus.APPROVED) {
           // Single-use: consume approval so a second identical command needs a new grant
@@ -189,10 +190,12 @@ export function classifyAndGate(command: string): { allowed: boolean; tier: Perm
         // If not approved and not already pending, insert a pending confirmation record
         if (!existing || existing.status === ConfirmationStatus.REJECTED) {
           const id = crypto.randomUUID();
-          db.prepare(`
+          db.prepare(
+            `
             INSERT INTO pending_confirmations (id, step_id, command, status)
             VALUES (?, ?, ?, ?)
-          `).run(id, config.activeStepId || null, command, ConfirmationStatus.PENDING);
+          `,
+          ).run(id, config.activeStepId || null, command, ConfirmationStatus.PENDING);
         }
       })();
 

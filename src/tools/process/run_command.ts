@@ -14,11 +14,22 @@ import { getDb } from "../../core/db.js";
 
 export const runCommandDefinition: CapabilityDefinition = {
   name: CapabilityName.RUN_COMMAND,
-  description: "Runs an ad-hoc shell command. Short-lived commands return output capped for context management. Long-running commands (like dev servers) run in the background and return process information.",
+  description:
+    "Runs an ad-hoc shell command. Short-lived commands return output capped for context management. Long-running commands (like dev servers) run in the background and return process information.",
   inputSchema: z.object({
     command: z.string().describe("The shell command to execute"),
-    timeoutMs: z.number().optional().describe("Timeout in milliseconds before considering it a background process (default 10000)"),
-    readinessPattern: z.string().optional().describe("Optional regex pattern. If matched in stdout, the command returns immediately with status 'ready'"),
+    timeoutMs: z
+      .number()
+      .optional()
+      .describe(
+        "Timeout in milliseconds before considering it a background process (default 10000)",
+      ),
+    readinessPattern: z
+      .string()
+      .optional()
+      .describe(
+        "Optional regex pattern. If matched in stdout, the command returns immediately with status 'ready'",
+      ),
   }),
   tier: PermissionTier.TIER_1, // Tier 1: Workspace writes / executions
 };
@@ -131,11 +142,13 @@ export async function runCommandHandler(args: {
     const upsertCommandLog = (status: string, pid?: number) => {
       try {
         const db = getDb();
-        db.prepare(`
+        db.prepare(
+          `
           INSERT INTO command_log (id, pid, log_path, status)
           VALUES (?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET pid = excluded.pid, status = excluded.status
-        `).run(logId, pid ?? null, logPath, status);
+        `,
+        ).run(logId, pid ?? null, logPath, status);
       } catch {
         // DB optional in early tests
       }

@@ -25,12 +25,12 @@ describe("benchmark task 2 build verification", () => {
     fs.writeFileSync(
       path.join(DIR, "exec.js"),
       "import fs from 'fs'; fs.mkdirSync('dist',{recursive:true}); fs.writeFileSync('dist/out.js','export default 1\\n');",
-      "utf-8"
+      "utf-8",
     );
     fs.writeFileSync(
       path.join(DIR, "check.js"),
       "import fs from 'fs'; process.exit(fs.existsSync('dist/out.js')?0:1);",
-      "utf-8"
+      "utf-8",
     );
     approveCommandForTests("node exec.js", "build");
     approveCommandForTests("node check.js", "build");

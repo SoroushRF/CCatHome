@@ -37,9 +37,7 @@ describe("Permission Gate single-use approvals", () => {
     expect(classifyAndGate("git push").allowed).toBe(false);
 
     const rows = getDb()
-      .prepare(
-        "SELECT status FROM pending_confirmations WHERE command = ? AND step_id IS NULL"
-      )
+      .prepare("SELECT status FROM pending_confirmations WHERE command = ? AND step_id IS NULL")
       .all("git push") as { status: string }[];
     expect(rows.length).toBeGreaterThanOrEqual(1);
     expect(rows.every((r) => r.status === ConfirmationStatus.PENDING)).toBe(true);

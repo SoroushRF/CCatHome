@@ -13,10 +13,7 @@ import { checkpointHandler } from "../checkpoint/checkpoint.js";
 import { restoreCheckpointHandler } from "../checkpoint/restore_checkpoint.js";
 import { config } from "../../core/config.js";
 import { RequiresConfirmationError } from "../../core/permission-gate.js";
-import {
-  areStepDependenciesMet,
-  getRunnableSteps,
-} from "../../core/workflow-engine.js";
+import { areStepDependenciesMet, getRunnableSteps } from "../../core/workflow-engine.js";
 import { summarizeAttemptLog } from "../../core/context-manager.js";
 import { ensureBranchIsolation, runGit } from "../../core/git-utils.js";
 import { resolveSafePath } from "../../core/path-utils.js";
@@ -30,24 +27,28 @@ function buildSummary(fullLog: string): string {
 
 function persistAttemptLog(fullLog: string): string {
   const logId = crypto.randomBytes(8).toString("hex");
-  const abs = resolveSafePath(
-    config.workspaceRoot,
-    `.ccathome/logs/cmd_${logId}.log`
-  );
+  const abs = resolveSafePath(config.workspaceRoot, `.ccathome/logs/cmd_${logId}.log`);
   safeWriteFile(abs, fullLog);
   return logId;
 }
 
 export const executeStepDefinition: CapabilityDefinition = {
   name: CapabilityName.EXECUTE_STEP,
-  description: "Executes a workflow step using an auto-fix micro-loop with checkpointing, validation, and recovery commands.",
+  description:
+    "Executes a workflow step using an auto-fix micro-loop with checkpointing, validation, and recovery commands.",
   inputSchema: z.object({
     workflowId: z.string().describe("The ID of the workflow"),
     stepId: z.string().describe("The ID of the step to execute"),
     executionCommand: z.string().describe("The command to run to execute the step"),
     validationCommand: z.string().describe("The command to run to validate if the step succeeded"),
-    maxRetries: z.number().default(3).describe("Max recovery attempts after the initial try (0 = single attempt, no recovery)"),
-    recoveryCommand: z.string().optional().describe("Optional recovery command to run after restoring checkpoint and before retrying"),
+    maxRetries: z
+      .number()
+      .default(3)
+      .describe("Max recovery attempts after the initial try (0 = single attempt, no recovery)"),
+    recoveryCommand: z
+      .string()
+      .optional()
+      .describe("Optional recovery command to run after restoring checkpoint and before retrying"),
   }),
   tier: PermissionTier.TIER_1, // Tier 1: Workspace writes / edits
 };
@@ -77,10 +78,14 @@ export async function executeStepHandler(args: {
   const db = getDb();
 
   // 1. Verify step exists and is runnable (pending, running, failed, or requires_confirmation)
-  const step = db.prepare(`
+  const step = db
+    .prepare(
+      `
     SELECT status, retry_count FROM workflow_steps
     WHERE id = ? AND workflow_id = ?
-  `).get(args.stepId, args.workflowId) as StepRow | undefined;
+  `,
+    )
+    .get(args.stepId, args.workflowId) as StepRow | undefined;
 
   if (!step) {
     return {
@@ -123,10 +128,7 @@ export async function executeStepHandler(args: {
     };
   }
 
-  if (
-    step.status !== StepStatus.PENDING &&
-    !retryOrResume
-  ) {
+  if (step.status !== StepStatus.PENDING && !retryOrResume) {
     return {
       success: false,
       error: "dependencies_unmet",
@@ -152,9 +154,11 @@ export async function executeStepHandler(args: {
   }
 
   // Set step status to running
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE workflow_steps SET status = ? WHERE id = ?
-  `).run(StepStatus.RUNNING, args.stepId);
+  `,
+  ).run(StepStatus.RUNNING, args.stepId);
 
   let attemptLogs = "";
   let success = false;
@@ -226,21 +230,25 @@ export async function executeStepHandler(args: {
       attemptLogs += `Step paused: requires user confirmation for command: '${err.command}'\n`;
       const retryCount = Math.max(0, attempt - 1);
 
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE workflow_steps
         SET status = ?, retry_count = ?, full_log = ?, summary = ?
         WHERE id = ?
-      `).run(
+      `,
+      ).run(
         StepStatus.REQUIRES_CONFIRMATION,
         retryCount,
         attemptLogs,
         buildSummary(attemptLogs),
-        args.stepId
+        args.stepId,
       );
 
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE workflows SET status = ? WHERE id = ?
-      `).run(WorkflowStatus.REQUIRES_CONFIRMATION, args.workflowId);
+      `,
+      ).run(WorkflowStatus.REQUIRES_CONFIRMATION, args.workflowId);
 
       config.activeStepId = undefined;
       config.activeWorkflowId = undefined;
@@ -302,17 +310,23 @@ export async function executeStepHandler(args: {
 
   // Update DB state
   const summary = buildSummary(attemptLogs);
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE workflow_steps
     SET status = ?, retry_count = ?, full_log = ?, summary = ?
     WHERE id = ?
-  `).run(finalStatus, retryCount, attemptLogs, summary, args.stepId);
+  `,
+  ).run(finalStatus, retryCount, attemptLogs, summary, args.stepId);
 
   // If the entire workflow has finished or failed, we can update workflow status.
   // We'll query if any steps are still failed or running.
-  const allSteps = db.prepare(`
+  const allSteps = db
+    .prepare(
+      `
     SELECT status FROM workflow_steps WHERE workflow_id = ?
-  `).all(args.workflowId) as { status: string }[];
+  `,
+    )
+    .all(args.workflowId) as { status: string }[];
 
   let wfStatus: WorkflowStatus = WorkflowStatus.RUNNING;
   if (allSteps.every((s) => s.status === StepStatus.COMPLETED)) {
@@ -321,9 +335,11 @@ export async function executeStepHandler(args: {
     wfStatus = WorkflowStatus.FAILED;
   }
 
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE workflows SET status = ? WHERE id = ?
-  `).run(wfStatus, args.workflowId);
+  `,
+  ).run(wfStatus, args.workflowId);
 
   const logId = persistAttemptLog(attemptLogs);
 

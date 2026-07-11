@@ -10,7 +10,7 @@ import { ConfirmationStatus } from "../core/constants.js";
 export function approveCommandForTests(
   command: string,
   stepId: string | null = null,
-  uses = 8
+  uses = 8,
 ): void {
   const db = getDb();
   const insert = db.prepare(`
