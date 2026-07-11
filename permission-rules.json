@@ -2,46 +2,46 @@
   "rules": [
     {
       "tier": 0,
-      "description": "Always allowed (read-only inspect, formatting, test runners, safe installations)",
+      "description": "Always allowed (read-only inspect, formatting, test runners)",
       "patterns": [
         "^git status\\b",
         "^git diff\\b",
-        "^git log",
-        "^git show",
+        "^git log\\b",
+        "^git show\\b",
         "^git branch$",
         "^git remote$",
         "^npm test$",
         "^npm run test$",
-        "^vitest",
-        "^eslint",
-        "^prettier",
+        "^vitest(?:\\s|$)",
+        "^eslint(?:\\s|$)",
+        "^prettier(?:\\s|$)",
         "^git rev-parse\\b",
         "^read_file\\b"
       ]
     },
     {
       "tier": 1,
-      "description": "Allowed within workspace scope (writes, local build, lint, commit, safe git switches)",
+      "description": "Allowed within workspace scope (writes, local build, lint, commit, safe branch create)",
       "patterns": [
         "^git add ",
-        "^git commit",
+        "^git commit(?:\\s|$)",
         "^npm run build$",
         "^npm run lint$",
         "^npm run format$",
         "^npm run dev$",
-        "^tsup",
-        "^tsc",
+        "^tsup(?:\\s|$)",
+        "^tsc(?:\\s|$)",
         "^git init$",
-        "^git config\\b",
+        "^git config\\s+(--local\\s+)?user\\.(name|email)\\b",
         "^git branch\\b",
         "^write_file\\b",
-        "^git checkout -b\\s+",
-        "^git checkout\\s+[^-]"
+        "^git checkout -b\\s+ccathome/",
+        "^git checkout\\s+ccathome/"
       ]
     },
     {
       "tier": 2,
-      "description": "Requires confirmation (remote sync, outbound requests, destructive local git ops)",
+      "description": "Requires confirmation (remote sync, outbound, destructive git, config, non-isolated checkout, installs)",
       "patterns": [
         "^git push",
         "^git pull",
@@ -51,16 +51,21 @@
         "^wget ",
         "^git checkout\\s+--",
         "^git checkout\\s+\\.",
+        "^git checkout -b\\s+(?!ccathome/)",
+        "^git checkout\\s+(?!-b\\b)(?!--)(?!\\.)(?!ccathome/)",
         "^git reset\\s+--hard",
         "^git clean\\b",
+        "^git config\\b(?!\\s+(?:--local\\s+)?user\\.(?:name|email)\\b)",
         "^npm i\\b",
         "^npm install\\b",
-        "^npm ci\\b"
+        "^npm ci\\b",
+        "^node\\b",
+        "^open_project\\b"
       ]
     },
     {
       "tier": 3,
-      "description": "Always blocked (destructive, root traversal, process hijacking, piping to shell, sensitive path hijacking)",
+      "description": "Always blocked (destructive, root traversal, process hijacking, piping to shell, sensitive path hijacking, command substitution, dangerous git config)",
       "patterns": [
         "\\brm\\b.*(?:-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)\\b.*\\s+/($|\\s|;|\\||&)",
         "\\brm\\b.*(?:-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)\\b.*\\s+/(?:etc|var|usr|bin|sbin|opt|sys|dev|proc|boot|root|home|Users|System|Windows|Program Files|ProgramData)\\b",
@@ -76,7 +81,15 @@
         "\\|\\s*/bin/(ba)?sh\\b",
         "\\|\\s*/usr/bin/(ba)?sh\\b",
         "curl\\b.*\\|",
-        "wget\\b.*\\|"
+        "wget\\b.*\\|",
+        "\\$\\(",
+        "`[^`]*`",
+        "^git config\\b.*\\balias\\.",
+        "^git config\\b.*\\bcore\\.hooksPath\\b",
+        "^git config\\b.*\\bcore\\.fsmonitor\\b",
+        "^git config\\b.*\\bcore\\.sshCommand\\b",
+        "^git config\\b.*\\bcore\\.editor\\b",
+        "^git config\\b.*\\bcore\\.pager\\b"
       ]
     }
   ],
