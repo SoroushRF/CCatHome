@@ -168,4 +168,39 @@ describe("Human-in-the-Loop Confirmation Suite (Step 3.2)", () => {
     expect(resumeRes.result.success).toBe(false);
     expect(resumeRes.result.status).toBe("failed");
   });
+
+  describe("ask_user failure and auth contracts (R7.2.6)", () => {
+    it("returns missing_command when permission type omits command", async () => {
+      const res = await invoke("ask_user", {
+        type: "permission",
+        response: "approved",
+        approvalToken: "test-approval-secret",
+      });
+      expect(res.result.success).toBe(false);
+      expect(res.result.error).toBe("missing_command");
+    });
+
+    it("returns invalid_response for non approve/reject values", async () => {
+      const res = await invoke("ask_user", {
+        type: "permission",
+        command: "git push",
+        response: "maybe",
+        approvalToken: "test-approval-secret",
+      });
+      expect(res.result.success).toBe(false);
+      expect(res.result.error).toBe("invalid_response");
+    });
+
+    it("returns approval_token_required when secret is wrong", async () => {
+      const res = await invoke("ask_user", {
+        type: "permission",
+        command: "git push",
+        response: "approved",
+        approvalToken: "wrong-secret",
+      });
+      expect(res.result.success).toBe(false);
+      expect(res.result.error).toBe("approval_token_required");
+    });
+  });
+
 });
