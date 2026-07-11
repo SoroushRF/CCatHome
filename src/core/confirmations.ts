@@ -16,7 +16,7 @@ export interface PendingConfirmationRow {
  */
 export function resolvePendingConfirmation(
   id: string,
-  response: ConfirmationStatus.APPROVED | ConfirmationStatus.REJECTED
+  response: ConfirmationStatus.APPROVED | ConfirmationStatus.REJECTED,
 ): { success: boolean; error?: string; reason?: string } {
   const db = getDb();
   const row = db
@@ -41,7 +41,7 @@ export function resolvePendingConfirmation(
       response === ConfirmationStatus.APPROVED ? StepStatus.RUNNING : StepStatus.FAILED;
     db.prepare("UPDATE workflow_steps SET status = ? WHERE id = ?").run(
       nextStepStatus,
-      row.step_id
+      row.step_id,
     );
   }
 
@@ -57,7 +57,7 @@ export function listPendingConfirmations(): PendingConfirmationRow[] {
          FROM pending_confirmations
          WHERE status = ?
          ORDER BY created_at DESC
-         LIMIT 20`
+         LIMIT 20`,
       )
       .all(ConfirmationStatus.PENDING) as PendingConfirmationRow[];
   } catch {
@@ -68,7 +68,7 @@ export function listPendingConfirmations(): PendingConfirmationRow[] {
          FROM pending_confirmations
          WHERE status = ?
          ORDER BY created_at DESC
-         LIMIT 20`
+         LIMIT 20`,
       )
       .all(ConfirmationStatus.PENDING) as PendingConfirmationRow[];
   }

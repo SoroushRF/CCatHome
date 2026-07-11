@@ -11,7 +11,7 @@ export function safeWriteFile(absPath: string, content: string): void {
   fs.mkdirSync(path.dirname(absPath), { recursive: true });
   const tmp = path.join(
     path.dirname(absPath),
-    `.ccathome-tmp-${crypto.randomBytes(8).toString("hex")}`
+    `.ccathome-tmp-${crypto.randomBytes(8).toString("hex")}`,
   );
   fs.writeFileSync(tmp, content, "utf-8");
   fs.renameSync(tmp, absPath);

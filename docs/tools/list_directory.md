@@ -1,31 +1,23 @@
 # Capability: `list_directory` (Tier B)
 
-Lists files and subdirectories located within a target folder.
+Lists directory entries.
 
 ## Input Schema
 
 ```typescript
-{
-  path: z.string().default("").describe("The path of the directory to list relative to the workspace root")
-}
+{ path?: z.string() }
 ```
 
 ## Output Schema
 
 ```typescript
-{
-  success: boolean,
-  entries?: Array<{
-    name: string,
-    isDirectory: boolean,
-    size?: number
-  }>,
-  error?: string,
-  reason?: string
-}
+{ success: boolean, items?: Array<{ name: string, type: string }>, error?: string, reason?: string }
 ```
 
 ## Failure Contract
 
-- **`path_traversal_detected`**: If target path resolves outside workspace root.
-- **`directory_not_found`**: If the target directory does not exist or is a file.
+- **`invalid_path`** / listing failures.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

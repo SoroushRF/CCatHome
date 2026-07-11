@@ -5,8 +5,7 @@ import { classifyAndGate } from "./permission-gate.js";
 import { PermissionTier, StepStatus } from "./constants.js";
 
 export type RetargetResult =
-  | { ok: true; absolutePath: string }
-  | { ok: false; error: string; reason: string };
+  { ok: true; absolutePath: string } | { ok: false; error: string; reason: string };
 
 /**
  * Validates and optionally gates a workspace retarget.
@@ -46,7 +45,10 @@ export function prepareWorkspaceRetarget(userPath: string): RetargetResult {
 
   const allowlistEnv = process.env.CCATHOME_WORKSPACE_ALLOWLIST;
   const allowedPrefixes = allowlistEnv
-    ? allowlistEnv.split(":").map((p) => path.resolve(p)).filter(Boolean)
+    ? allowlistEnv
+        .split(":")
+        .map((p) => path.resolve(p))
+        .filter(Boolean)
     : [path.resolve(config.initialWorkspaceRoot)];
 
   const insideAllowed = allowedPrefixes.some((prefix) => {

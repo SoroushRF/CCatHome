@@ -15,7 +15,8 @@ const MAX_LOG_ENTRIES = 200;
 
 export const runScriptDefinition: CapabilityDefinition = {
   name: CapabilityName.RUN_SCRIPT,
-  description: "Runs Javascript code inside a sandboxed Node VM context with gated resource access.",
+  description:
+    "Runs Javascript code inside a sandboxed Node VM context with gated resource access.",
   inputSchema: z.object({
     code: z.string().describe("The Javascript code to execute in the sandboxed VM context"),
     timeoutMs: z
@@ -29,10 +30,7 @@ export const runScriptDefinition: CapabilityDefinition = {
   tier: PermissionTier.TIER_1, // Tier 1: Workspace writes / edits
 };
 
-export async function runScriptHandler(args: {
-  code: string;
-  timeoutMs?: number;
-}): Promise<{
+export async function runScriptHandler(args: { code: string; timeoutMs?: number }): Promise<{
   success: boolean;
   result?: any;
   log?: string[];
@@ -47,7 +45,7 @@ export async function runScriptHandler(args: {
       const gateResult = classifyAndGate(command);
       if (!gateResult.allowed) {
         throw new Error(
-          `Permission denied: Command '${command}' was rejected by the Permission Gate (Tier ${gateResult.tier})`
+          `Permission denied: Command '${command}' was rejected by the Permission Gate (Tier ${gateResult.tier})`,
         );
       }
       return runCommandGated(command);
@@ -56,7 +54,7 @@ export async function runScriptHandler(args: {
       const gateResult = classifyAndGate(`read_file ${relativePath}`);
       if (!gateResult.allowed) {
         throw new Error(
-          `Permission denied: Read access to '${relativePath}' was rejected by the Permission Gate (Tier ${gateResult.tier})`
+          `Permission denied: Read access to '${relativePath}' was rejected by the Permission Gate (Tier ${gateResult.tier})`,
         );
       }
       const safePath = resolveSafePath(config.workspaceRoot, relativePath);
@@ -66,7 +64,7 @@ export async function runScriptHandler(args: {
       const gateResult = classifyAndGate(`write_file ${relativePath}`);
       if (!gateResult.allowed) {
         throw new Error(
-          `Permission denied: Write access to '${relativePath}' was rejected by the Permission Gate (Tier ${gateResult.tier})`
+          `Permission denied: Write access to '${relativePath}' was rejected by the Permission Gate (Tier ${gateResult.tier})`,
         );
       }
       const safePath = resolveSafePath(config.workspaceRoot, relativePath);
@@ -112,7 +110,7 @@ export async function runScriptHandler(args: {
     const result = await Promise.race([
       promise,
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error(`Script timed out after ${timeout}ms`)), timeout)
+        setTimeout(() => reject(new Error(`Script timed out after ${timeout}ms`)), timeout),
       ),
     ]);
 

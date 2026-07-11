@@ -1,33 +1,34 @@
 # Capability: `ask_user` (Tier A)
 
-Handles human clarification questions or approves pending Tier 2 gated permission execution checks.
+Clarification or permission HITL (ADR 0009). MCP mutations require `approvalToken === CCATHOME_APPROVAL_TOKEN`.
 
 ## Input Schema
 
 ```typescript
 {
-  type: z.enum(["clarification", "permission"]).describe("The type of request: clarification or permission approval"),
-  question: z.string().optional().describe("Clarification question for the user"),
-  options: z.array(z.string()).optional().describe("Optional list of choices for clarification"),
-  command: z.string().optional().describe("The Tier 2 command requiring confirmation"),
-  risk: z.string().optional().describe("The associated risk description of running the command"),
-  response: z.string().optional().describe("The user's response or approval ('approved' or 'rejected')")
+  type: z.enum(["clarification", "permission"]),
+  question?: z.string(),
+  options?: z.array(z.string()),
+  command?: z.string(),
+  risk?: z.string(),
+  response?: z.string(), // "approved" | "rejected"
+  approvalToken?: z.string()
 }
 ```
 
 ## Output Schema
 
 ```typescript
-{
-  success: boolean,
-  response?: string,
-  error?: string,
-  reason?: string
-}
+{ success: boolean, response?: string, error?: string, reason?: string }
 ```
 
 ## Failure Contract
 
-- **`missing_command`**: If command parameter is omitted on permission request checks.
-- **`invalid_response`**: If response is not `'approved'` or `'rejected'`.
-- **`no_pending_confirmation`**: If no matching pending confirmation request is located in database.
+- **`missing_command`**: Permission type without command.
+- **`approval_token_required`**: `response` without valid secret.
+- **`invalid_response`**: Not approved/rejected.
+- **`timeout`**: Poll exceeded 60s waiting for dashboard/secret resolution.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

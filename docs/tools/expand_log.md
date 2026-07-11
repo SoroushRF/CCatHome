@@ -1,26 +1,23 @@
 # Capability: `expand_log` (Tier B)
 
-Reads the full content of a background process log file.
+Reads a command/step log by hex `logId` under `.ccathome/logs/`.
 
 ## Input Schema
 
 ```typescript
-{
-  pid: z.number().describe("The PID of the background process")
-}
+{ logId: z.string() }
 ```
 
 ## Output Schema
 
 ```typescript
-{
-  success: boolean,
-  content?: string,
-  error?: string,
-  reason?: string
-}
+{ success: boolean, content?: string, error?: string, reason?: string }
 ```
 
 ## Failure Contract
 
-- **`process_not_found`**: If target process log file does not exist.
+- Non-hex `logId` rejected; path must resolve via `resolveSafePath`.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

@@ -15,7 +15,10 @@ export const applyPatchDefinition: CapabilityDefinition = {
   inputSchema: z.object({
     path: z.string().describe("Path to the file to patch (resolved relative to workspace root)"),
     patch: z.string().describe("The unified diff patch content to apply"),
-    expectedSha: z.string().optional().describe("Expected SHA-256 hash of the target file before patching"),
+    expectedSha: z
+      .string()
+      .optional()
+      .describe("Expected SHA-256 hash of the target file before patching"),
   }),
   tier: PermissionTier.TIER_1, // Tier 1: Workspace writes
 };

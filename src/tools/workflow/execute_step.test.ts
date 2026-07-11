@@ -9,7 +9,10 @@ import { runCommandGated } from "../../core/process-runner.js";
 import { saveWorkflow } from "../../core/workflow-engine.js";
 import { executeStepDefinition, executeStepHandler } from "./execute_step.js";
 import { checkpointDefinition, checkpointHandler } from "../checkpoint/checkpoint.js";
-import { restoreCheckpointDefinition, restoreCheckpointHandler } from "../checkpoint/restore_checkpoint.js";
+import {
+  restoreCheckpointDefinition,
+  restoreCheckpointHandler,
+} from "../checkpoint/restore_checkpoint.js";
 import { approveCommandForTests } from "../../test/approve-command.js";
 
 const TEST_DIR = path.resolve(config.workspaceRoot, "temp_execute_step_test");
@@ -26,17 +29,17 @@ describe("Execute Step Compound Loop Suite", () => {
       }
     }
     fs.mkdirSync(TEST_DIR, { recursive: true });
-    
+
     // Initialize git
     await runCommandGated("git init");
-    await runCommandGated("git config user.email \"test@ccathome.com\"");
-    await runCommandGated("git config user.name \"Test CCatHome\"");
+    await runCommandGated('git config user.email "test@ccathome.com"');
+    await runCommandGated('git config user.name "Test CCatHome"');
     await runCommandGated("git checkout -b main");
 
     // Write a dummy file to commit
     fs.writeFileSync(path.join(TEST_DIR, "dummy.txt"), "dummy\n", "utf-8");
     await runCommandGated("git add dummy.txt");
-    await runCommandGated("git commit -m \"Initial commit\"");
+    await runCommandGated('git commit -m "Initial commit"');
 
     // Register capabilities
     registerCapability(executeStepDefinition, executeStepHandler);
@@ -86,7 +89,11 @@ describe("Execute Step Compound Loop Suite", () => {
 
     // Verify DB states
     const db = getDb();
-    const stepRow = db.prepare("SELECT status, retry_count, full_log, summary FROM workflow_steps WHERE id = 'step1'").get() as any;
+    const stepRow = db
+      .prepare(
+        "SELECT status, retry_count, full_log, summary FROM workflow_steps WHERE id = 'step1'",
+      )
+      .get() as any;
     expect(stepRow.status).toBe("completed");
     expect(stepRow.retry_count).toBe(0);
     expect(stepRow.full_log).toContain("=== Attempt 1 ===");
@@ -105,7 +112,7 @@ describe("Execute Step Compound Loop Suite", () => {
     fs.writeFileSync(
       path.join(TEST_DIR, "exec.js"),
       `import fs from 'fs'; fs.writeFileSync('out.txt', 'done', 'utf-8');`,
-      "utf-8"
+      "utf-8",
     );
     fs.writeFileSync(path.join(TEST_DIR, "check.js"), "process.exit(0);", "utf-8");
 
@@ -132,20 +139,28 @@ describe("Execute Step Compound Loop Suite", () => {
     fs.writeFileSync(path.join(TEST_DIR, "exec.js"), "console.log('running build');", "utf-8");
 
     // validation script checks for existence of 'fixed.txt'
-    fs.writeFileSync(path.join(TEST_DIR, "check.js"), `
+    fs.writeFileSync(
+      path.join(TEST_DIR, "check.js"),
+      `
       import fs from 'fs';
       if (fs.existsSync('fixed.txt')) {
         process.exit(0);
       } else {
         process.exit(1);
       }
-    `, "utf-8");
+    `,
+      "utf-8",
+    );
 
     // recovery script creates 'fixed.txt'
-    fs.writeFileSync(path.join(TEST_DIR, "recover.js"), `
+    fs.writeFileSync(
+      path.join(TEST_DIR, "recover.js"),
+      `
       import fs from 'fs';
       fs.writeFileSync('fixed.txt', 'recovered', 'utf-8');
-    `, "utf-8");
+    `,
+      "utf-8",
+    );
 
     // Execute step
     approveCommandForTests("node exec.js", "step2");
@@ -167,7 +182,9 @@ describe("Execute Step Compound Loop Suite", () => {
 
     // Verify database log content
     const db = getDb();
-    const stepRow = db.prepare("SELECT status, retry_count, full_log FROM workflow_steps WHERE id = 'step2'").get() as any;
+    const stepRow = db
+      .prepare("SELECT status, retry_count, full_log FROM workflow_steps WHERE id = 'step2'")
+      .get() as any;
     expect(stepRow.status).toBe("completed");
     expect(stepRow.retry_count).toBe(1);
     expect(stepRow.full_log).toContain("=== Attempt 1 ===");
@@ -201,9 +218,9 @@ describe("Execute Step Compound Loop Suite", () => {
     expect(res.result.error).toBe("dependencies_unmet");
 
     const db = getDb();
-    const stepRow = db
-      .prepare("SELECT status FROM workflow_steps WHERE id = 'child'")
-      .get() as { status: string };
+    const stepRow = db.prepare("SELECT status FROM workflow_steps WHERE id = 'child'").get() as {
+      status: string;
+    };
     expect(stepRow.status).toBe("pending");
   });
 
@@ -212,7 +229,7 @@ describe("Execute Step Compound Loop Suite", () => {
     fs.writeFileSync(
       path.join(TEST_DIR, "exec.js"),
       `import fs from 'fs'; fs.writeFileSync('fail-out.txt', 'x', 'utf-8');`,
-      "utf-8"
+      "utf-8",
     );
     fs.writeFileSync(path.join(TEST_DIR, "check.js"), "process.exit(1);", "utf-8");
 
@@ -242,7 +259,7 @@ describe("Execute Step Compound Loop Suite", () => {
       workflowId: "wf-pause-nc",
       stepId: "stepPause",
       executionCommand: "git push",
-      validationCommand: "node -e \"process.exit(0)\"",
+      validationCommand: 'node -e "process.exit(0)"',
       maxRetries: 0,
     });
 
@@ -274,7 +291,9 @@ describe("Execute Step Compound Loop Suite", () => {
     expect(res.result.retryCount).toBe(2);
 
     const db = getDb();
-    const stepRow = db.prepare("SELECT status, retry_count, full_log FROM workflow_steps WHERE id = 'step3'").get() as any;
+    const stepRow = db
+      .prepare("SELECT status, retry_count, full_log FROM workflow_steps WHERE id = 'step3'")
+      .get() as any;
     expect(stepRow.status).toBe("failed");
     expect(stepRow.retry_count).toBe(2);
     expect(stepRow.full_log).toContain("=== Attempt 3 ===");
@@ -363,5 +382,40 @@ describe("Execute Step Compound Loop Suite", () => {
       .get() as { full_log: string };
     expect(stepRow.full_log).toContain("Execution Exit Code: 7");
     expect(stepRow.full_log).not.toContain("Validation Exit Code:");
+  });
+
+  describe("execute_step failure contracts (R7.2.4)", () => {
+    it("returns step_not_found for unknown step ids", async () => {
+      saveWorkflow("wf-missing", "Missing", [{ id: "only", title: "Only" }]);
+      const res = await invoke("execute_step", {
+        workflowId: "wf-missing",
+        stepId: "nope",
+        executionCommand: "true",
+        validationCommand: "true",
+        maxRetries: 0,
+      });
+      expect(res.result.success).toBe(false);
+      expect(res.result.error).toBe("step_not_found");
+    });
+
+    it("returns dependencies_unmet and leaves prior step files intact on rollback path", async () => {
+      saveWorkflow("wf-roll", "Rollback bytes", [
+        { id: "a", title: "A" },
+        { id: "b", title: "B", depends_on: ["a"] },
+      ]);
+      const marker = path.join(TEST_DIR, "pre-existing.txt");
+      fs.writeFileSync(marker, "untouched-bytes\n", "utf-8");
+
+      const res = await invoke("execute_step", {
+        workflowId: "wf-roll",
+        stepId: "b",
+        executionCommand: "node -e \"require('fs').writeFileSync('should-not.txt','x')\"",
+        validationCommand: "true",
+        maxRetries: 0,
+      });
+      expect(res.result.error).toBe("dependencies_unmet");
+      expect(fs.readFileSync(marker, "utf-8")).toBe("untouched-bytes\n");
+      expect(fs.existsSync(path.join(TEST_DIR, "should-not.txt"))).toBe(false);
+    });
   });
 });

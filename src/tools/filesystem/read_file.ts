@@ -9,16 +9,15 @@ import { outlineSource } from "../../core/context-manager.js";
 
 export const readFileDefinition: CapabilityDefinition = {
   name: CapabilityName.READ_FILE,
-  description: "Reads the content of a file. For files larger than 300 lines, returns a structure outline to manage context window pressure.",
+  description:
+    "Reads the content of a file. For files larger than 300 lines, returns a structure outline to manage context window pressure.",
   inputSchema: z.object({
     path: z.string().describe("Path to the file to read (resolved relative to workspace root)"),
   }),
   tier: PermissionTier.TIER_0, // Tier 0: Always allowed reads
 };
 
-export async function readFileHandler(args: {
-  path: string;
-}): Promise<{
+export async function readFileHandler(args: { path: string }): Promise<{
   success: boolean;
   content?: string;
   outline?: string;

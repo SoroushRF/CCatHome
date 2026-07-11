@@ -26,7 +26,7 @@ describe("Dispatcher Discovery & Routing Suite (Step 3.1)", () => {
         inputSchema: z.object({}),
         tier: PermissionTier.TIER_1,
       },
-      async () => ({ success: true })
+      async () => ({ success: true }),
     );
 
     // Register a dummy Tier B capability in the registry (e.g. remember or dummy_b)
@@ -37,7 +37,7 @@ describe("Dispatcher Discovery & Routing Suite (Step 3.1)", () => {
         inputSchema: z.object({ secret: z.string() }),
         tier: PermissionTier.TIER_1,
       },
-      async (args: { secret: string }) => ({ stored: true, length: args.secret.length })
+      async (args: { secret: string }) => ({ stored: true, length: args.secret.length }),
     );
   });
 

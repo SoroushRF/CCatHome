@@ -135,9 +135,7 @@ describe("Workflow DAG Engine Suite", () => {
   });
 
   it("should reject step dependency on missing step ID", async () => {
-    const brokenSteps = [
-      { id: "stepA", title: "Step A", depends_on: ["missing_step"] },
-    ];
+    const brokenSteps = [{ id: "stepA", title: "Step A", depends_on: ["missing_step"] }];
 
     const res = await invoke("create_workflow", {
       name: "Broken dependencies",

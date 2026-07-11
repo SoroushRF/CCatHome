@@ -24,9 +24,7 @@ interface CheckpointDbRow {
   backup_meta: string;
 }
 
-export async function restoreCheckpointHandler(args: {
-  checkpointId: string;
-}): Promise<{
+export async function restoreCheckpointHandler(args: { checkpointId: string }): Promise<{
   success: boolean;
   error?: string;
   reason?: string;
@@ -35,11 +33,15 @@ export async function restoreCheckpointHandler(args: {
 
   try {
     // 1. Retrieve checkpoint metadata
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT id, workflow_step_id, git_sha, backup_meta
       FROM checkpoints
       WHERE id = ?
-    `).get(args.checkpointId) as CheckpointDbRow | undefined;
+    `,
+      )
+      .get(args.checkpointId) as CheckpointDbRow | undefined;
 
     if (!row) {
       return {

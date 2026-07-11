@@ -1,37 +1,23 @@
-# Capability: `get_workflow_state` (Tier B)
+# Capability: `get_workflow_state` (Tier A)
 
-Fetches the execution status and history of steps in a workflow.
+Reads workflow/step state. Step views default to `summary`; pass `includeFullLog: true` for `fullLog`.
 
 ## Input Schema
 
 ```typescript
-{
-  workflowId: z.string().describe("The ID of the workflow")
-}
+{ workflowId?: z.string(), stepId?: z.string(), includeFullLog?: z.boolean() }
 ```
 
 ## Output Schema
 
 ```typescript
-{
-  success: boolean,
-  workflow?: {
-    id: string,
-    name: string,
-    status: string
-  },
-  steps?: Array<{
-    id: string,
-    title: string,
-    status: string,
-    retryCount: number,
-    dependsOn: string[]
-  }>,
-  error?: string,
-  reason?: string
-}
+{ success: boolean, workflow?: object, step?: object, workflows?: object[], error?: string, reason?: string }
 ```
 
 ## Failure Contract
 
-- **`workflow_not_found`**: If the workflow ID does not exist in the database.
+- **`step_not_found`** / **`workflow_not_found`** / **`query_failed`**.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

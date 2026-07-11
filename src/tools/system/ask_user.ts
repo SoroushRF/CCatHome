@@ -16,16 +16,23 @@ export const askUserDefinition: CapabilityDefinition = {
   name: CapabilityName.ASK_USER,
   description: "Asks the user for clarification or permission to execute a Tier 2 gated command.",
   inputSchema: z.object({
-    type: z.enum(["clarification", "permission"]).describe("The type of request: clarification or permission approval"),
+    type: z
+      .enum(["clarification", "permission"])
+      .describe("The type of request: clarification or permission approval"),
     question: z.string().optional().describe("Clarification question for the user"),
     options: z.array(z.string()).optional().describe("Optional list of choices for clarification"),
     command: z.string().optional().describe("The Tier 2 command requiring confirmation"),
     risk: z.string().optional().describe("The associated risk description of running the command"),
-    response: z.string().optional().describe("The user's response or approval (approved or rejected)"),
+    response: z
+      .string()
+      .optional()
+      .describe("The user's response or approval (approved or rejected)"),
     approvalToken: z
       .string()
       .optional()
-      .describe("Secret matching CCATHOME_APPROVAL_TOKEN required to mutate confirmation state over MCP"),
+      .describe(
+        "Secret matching CCATHOME_APPROVAL_TOKEN required to mutate confirmation state over MCP",
+      ),
   }),
   tier: PermissionTier.TIER_0, // Tier 0: allowed so the agent can ask questions, and user can respond
 };
@@ -68,16 +75,17 @@ export async function askUserHandler(args: {
     query += " ORDER BY created_at DESC LIMIT 1";
 
     let pending = db.prepare(query).get(...queryParams) as
-      | { id: string; step_id: string | null; status: string }
-      | undefined;
+      { id: string; step_id: string | null; status: string } | undefined;
 
     if (!pending) {
       // If not already exists, insert a new pending confirmation
       const newId = crypto.randomUUID();
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO pending_confirmations (id, step_id, command, status)
         VALUES (?, ?, ?, ?)
-      `).run(newId, config.activeStepId || null, args.command, ConfirmationStatus.PENDING);
+      `,
+      ).run(newId, config.activeStepId || null, args.command, ConfirmationStatus.PENDING);
 
       pending = {
         id: newId,
@@ -110,17 +118,15 @@ export async function askUserHandler(args: {
 
       db.prepare("UPDATE pending_confirmations SET status = ? WHERE id = ?").run(
         args.response,
-        pending.id
+        pending.id,
       );
 
       if (pending.step_id) {
         const nextStepStatus =
-          args.response === ConfirmationStatus.APPROVED
-            ? StepStatus.RUNNING
-            : StepStatus.FAILED;
+          args.response === ConfirmationStatus.APPROVED ? StepStatus.RUNNING : StepStatus.FAILED;
         db.prepare("UPDATE workflow_steps SET status = ? WHERE id = ?").run(
           nextStepStatus,
-          pending.step_id
+          pending.step_id,
         );
       }
 
@@ -136,7 +142,7 @@ export async function askUserHandler(args: {
       console.error(`[RISK] ${args.risk}`);
     }
     console.error(
-      `Please approve this request in the dashboard (token URL printed at server startup) or via ask_user with approvalToken.`
+      `Please approve this request in the dashboard (token URL printed at server startup) or via ask_user with approvalToken.`,
     );
 
     const checkInterval = 1000; // 1s
@@ -182,26 +188,30 @@ export async function askUserHandler(args: {
   const question = args.question || "Clarification requested";
   const newId = crypto.randomUUID();
   try {
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO pending_confirmations (id, step_id, command, status, type, question)
       VALUES (?, ?, ?, ?, 'clarification', ?)
-    `).run(
+    `,
+    ).run(
       newId,
       config.activeStepId || null,
       `clarification:${question.slice(0, 120)}`,
       ConfirmationStatus.PENDING,
-      question
+      question,
     );
   } catch {
     // Fallback if type/question columns missing (pre-migration)
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO pending_confirmations (id, step_id, command, status)
       VALUES (?, ?, ?, ?)
-    `).run(
+    `,
+    ).run(
       newId,
       config.activeStepId || null,
       `clarification:${question.slice(0, 120)}`,
-      ConfirmationStatus.PENDING
+      ConfirmationStatus.PENDING,
     );
   }
 

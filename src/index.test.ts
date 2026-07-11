@@ -14,7 +14,7 @@ describe("Stdio MCP Server Configuration & Binding Suite (Step 3.5 E2E)", () => 
     // 2. Initialize McpServer
     server = new McpServer({
       name: "ccathome-test-server",
-      version: "1.0.0",
+      version: "2.1.0",
     });
 
     // 3. Register Tier A capabilities
@@ -32,7 +32,7 @@ describe("Stdio MCP Server Configuration & Binding Suite (Step 3.5 E2E)", () => 
             return {
               content: [{ type: "text", text: `Mock executed ${cap.definition.name}` }],
             };
-          }
+          },
         );
       }
     }

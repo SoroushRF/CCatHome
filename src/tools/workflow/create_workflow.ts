@@ -6,16 +6,19 @@ import { saveWorkflow } from "../../core/workflow-engine.js";
 
 export const createWorkflowDefinition: CapabilityDefinition = {
   name: CapabilityName.CREATE_WORKFLOW,
-  description: "Creates a new multi-step DAG workflow. Validates dependencies and cycle constraints.",
+  description:
+    "Creates a new multi-step DAG workflow. Validates dependencies and cycle constraints.",
   inputSchema: z.object({
     name: z.string().describe("The name of the workflow"),
-    steps: z.array(
-      z.object({
-        id: z.string().describe("Unique identifier for this step"),
-        title: z.string().describe("Title of this step"),
-        depends_on: z.array(z.string()).optional().describe("Optional step ID dependencies"),
-      })
-    ).describe("List of workflow steps"),
+    steps: z
+      .array(
+        z.object({
+          id: z.string().describe("Unique identifier for this step"),
+          title: z.string().describe("Title of this step"),
+          depends_on: z.array(z.string()).optional().describe("Optional step ID dependencies"),
+        }),
+      )
+      .describe("List of workflow steps"),
   }),
   tier: PermissionTier.TIER_1, // Tier 1: Workspace writes / edits
 };

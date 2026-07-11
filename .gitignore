@@ -9,3 +9,4 @@ temp_*/
 *.sqlite-wal
 
 
+coverage/

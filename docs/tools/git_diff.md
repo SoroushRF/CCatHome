@@ -1,26 +1,23 @@
 # Capability: `git_diff` (Tier B)
 
-Shows the uncommitted diff of files in the workspace.
+Returns uncommitted diff (`--no-pager` argv; Tier-0 display command).
 
 ## Input Schema
 
 ```typescript
-{
-  paths: z.array(z.string()).optional().describe("Optional path patterns to show diff for")
-}
+{ staged?: z.boolean() }
 ```
 
 ## Output Schema
 
 ```typescript
-{
-  success: boolean,
-  diff?: string,
-  error?: string,
-  reason?: string
-}
+{ success: boolean, diff?: string, error?: string, reason?: string }
 ```
 
 ## Failure Contract
 
-- **`git_diff_failed`**: If running git diff command fails.
+- **`git_diff_failed`**, **`execution_failed`**.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

@@ -1,26 +1,23 @@
 # Capability: `git_checkout` (Tier B)
 
-Switches branches or restores workspace files via Git checkout.
+Checks out or creates a branch (safe ref validation).
 
 ## Input Schema
 
 ```typescript
-{
-  target: z.string().describe("The branch name or path to checkout")
-}
+{ branch: z.string(), create?: z.boolean() }
 ```
 
 ## Output Schema
 
 ```typescript
-{
-  success: boolean,
-  error?: string,
-  reason?: string
-}
+{ success: boolean, error?: string, reason?: string }
 ```
 
 ## Failure Contract
 
-- **`git_checkout_failed`**: If target switch fails.
-- **`requires_confirmation`**: If target checkout involves file discarding (`git checkout -- .` or `git checkout .`) under Tier 2.
+- Unsafe ref characters rejected; git failures structured.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

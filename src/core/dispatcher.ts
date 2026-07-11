@@ -75,14 +75,16 @@ export async function invoke(capabilityName: string, args: any): Promise<InvokeR
     try {
       const db = getDb();
       confirmationId = crypto.randomUUID();
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO pending_confirmations (id, step_id, command, status)
         VALUES (?, ?, ?, ?)
-      `).run(
+      `,
+      ).run(
         confirmationId,
         config.activeStepId || null,
         `capability:${capabilityName}`,
-        ConfirmationStatus.PENDING
+        ConfirmationStatus.PENDING,
       );
     } catch {
       confirmationId = undefined;
@@ -112,7 +114,9 @@ export async function invoke(capabilityName: string, args: any): Promise<InvokeR
  * Never includes Tier A tools in the output to avoid model tool selection confusion.
  * Returns at most 5 matches (PRD §5.3), preferring name-prefix hits.
  */
-export function listCapabilities(query?: string): Array<{ name: string; description: string; schema: any }> {
+export function listCapabilities(
+  query?: string,
+): Array<{ name: string; description: string; schema: any }> {
   const capabilities = getAllCapabilities();
   const filtered = capabilities.filter((c) => !TIER_A_TOOLS.has(c.definition.name));
 
@@ -126,7 +130,9 @@ export function listCapabilities(query?: string): Array<{ name: string; descript
           return { c, prefix };
         })
         .filter((x) => x.prefix >= 0)
-        .sort((a, b) => a.prefix - b.prefix || a.c.definition.name.localeCompare(b.c.definition.name))
+        .sort(
+          (a, b) => a.prefix - b.prefix || a.c.definition.name.localeCompare(b.c.definition.name),
+        )
         .map((x) => x.c)
     : filtered;
 
@@ -166,8 +172,8 @@ function levenshtein(a: string, b: string): number {
       } else {
         matrix[i][j] = Math.min(
           matrix[i - 1][j - 1] + 1, // substitution
-          matrix[i][j - 1] + 1,     // insertion
-          matrix[i - 1][j] + 1,     // deletion
+          matrix[i][j - 1] + 1, // insertion
+          matrix[i - 1][j] + 1, // deletion
         );
       }
     }

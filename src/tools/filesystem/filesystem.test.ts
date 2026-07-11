@@ -97,7 +97,7 @@ describe("Filesystem Capabilities Suite", () => {
 
   it("should reject path traversal in apply_patch and read_file", async () => {
     const patch = `@@ -1 +1 @@\n-content\n+new content`;
-    
+
     const patchRes = await invoke("apply_patch", {
       path: "../../escaped.txt",
       patch,
@@ -226,5 +226,55 @@ describe("Filesystem Capabilities Suite", () => {
     });
     expect(patchRes.result.success).toBe(false);
     expect(fs.readFileSync(path.join(TEST_DIR, "stable.txt"), "utf-8")).toBe("keep-me\n");
+  });
+
+  describe("apply_patch failure contract matrix (R7.2.1)", () => {
+    it("returns patch_failed when hunks do not apply", async () => {
+      fs.writeFileSync(path.join(TEST_DIR, "stable2.txt"), "keep-me\n", "utf-8");
+      const patch = `@@ -1,1 +1,1 @@
+-wrong
++nope
+`;
+      const patchRes = await invoke("apply_patch", {
+        path: "stable2.txt",
+        patch,
+      });
+      expect(patchRes.result.success).toBe(false);
+      expect(patchRes.result.error).toBe("patch_failed");
+      expect(fs.readFileSync(path.join(TEST_DIR, "stable2.txt"), "utf-8")).toBe("keep-me\n");
+    });
+
+    it("returns invalid_path for absolute escape", async () => {
+      const patchRes = await invoke("apply_patch", {
+        path: "/etc/passwd",
+        patch: "@@ -1 +1 @@\n-a\n+b\n",
+      });
+      expect(patchRes.result.success).toBe(false);
+      expect(patchRes.result.error).toBe("invalid_path");
+    });
+
+    it("returns sensitive_path_blocked for .git/hooks", async () => {
+      fs.mkdirSync(path.join(TEST_DIR, ".git", "hooks"), { recursive: true });
+      const patchRes = await invoke("apply_patch", {
+        path: ".git/hooks/pre-commit",
+        patch: "@@ -0,0 +1 @@\n+evil\n",
+      });
+      expect(patchRes.result.success).toBe(false);
+      expect(patchRes.result.error).toBe("sensitive_path_blocked");
+    });
+
+    it("returns sha_mismatch with currentSha", async () => {
+      fs.writeFileSync(path.join(TEST_DIR, "sha2.txt"), "content", "utf-8");
+      const badSha = crypto.createHash("sha256").update("other").digest("hex");
+      const res = await invoke("apply_patch", {
+        path: "sha2.txt",
+        patch: "@@ -1 +1 @@\n-content\n+new\n",
+        expectedSha: badSha,
+      });
+      expect(res.result.error).toBe("sha_mismatch");
+      expect(res.result.currentSha).toBe(
+        crypto.createHash("sha256").update("content", "utf-8").digest("hex"),
+      );
+    });
   });
 });

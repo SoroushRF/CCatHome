@@ -9,7 +9,10 @@ import { runCommandGated } from "../../core/process-runner.js";
 import { createWorkflowDefinition, createWorkflowHandler } from "../workflow/create_workflow.js";
 import { executeStepDefinition, executeStepHandler } from "../workflow/execute_step.js";
 import { checkpointDefinition, checkpointHandler } from "../checkpoint/checkpoint.js";
-import { restoreCheckpointDefinition, restoreCheckpointHandler } from "../checkpoint/restore_checkpoint.js";
+import {
+  restoreCheckpointDefinition,
+  restoreCheckpointHandler,
+} from "../checkpoint/restore_checkpoint.js";
 import { startDashboardServer, stopDashboardServer } from "../../core/dashboard-server.js";
 import { approveCommandForTests } from "../../test/approve-command.js";
 import { ConfirmationStatus } from "../../core/constants.js";
@@ -27,12 +30,12 @@ describe("HITL dashboard approve → resume execute_step", () => {
     fs.mkdirSync(TEST_DIR, { recursive: true });
 
     await runCommandGated("git init");
-    await runCommandGated("git config user.email \"hitl@ccathome.com\"");
-    await runCommandGated("git config user.name \"HITL\"");
+    await runCommandGated('git config user.email "hitl@ccathome.com"');
+    await runCommandGated('git config user.name "HITL"');
     await runCommandGated("git checkout -b main");
     fs.writeFileSync(path.join(TEST_DIR, "dummy.txt"), "hello\n", "utf-8");
     await runCommandGated("git add dummy.txt");
-    await runCommandGated("git commit -m \"init\"");
+    await runCommandGated('git commit -m "init"');
 
     registerCapability(createWorkflowDefinition, createWorkflowHandler);
     registerCapability(executeStepDefinition, executeStepHandler);
@@ -69,21 +72,19 @@ describe("HITL dashboard approve → resume execute_step", () => {
     expect(paused.result.status).toBe("requires_confirmation");
 
     const pending = getDb()
-      .prepare(
-        "SELECT id, status FROM pending_confirmations WHERE step_id = ? AND status = ?"
-      )
+      .prepare("SELECT id, status FROM pending_confirmations WHERE step_id = ? AND status = ?")
       .get("stepA", ConfirmationStatus.PENDING) as { id: string; status: string };
     expect(pending).toBeDefined();
 
     const approveRes = await fetch(
       `http://localhost:${port}/api/confirmations/${pending.id}/approve?token=${token}`,
-      { method: "POST" }
+      { method: "POST" },
     );
     expect(approveRes.status).toBe(200);
 
-    const validationCommand = "node -e \"process.exit(0)\"";
+    const validationCommand = 'node -e "process.exit(0)"';
     approveCommandForTests(validationCommand, "stepA");
-    // Re-grant push approval (single-use consumed on first pause attempt already used? 
+    // Re-grant push approval (single-use consumed on first pause attempt already used?
     // Pause threw before consume — approval via dashboard set approved; resume consumes it.
     const resume = await invoke("execute_step", {
       workflowId,

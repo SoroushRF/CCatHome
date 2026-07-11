@@ -20,7 +20,7 @@ describe("Permission Gate Command Classifier", () => {
 
   it("should classify Tier 1 commands correctly", () => {
     expect(classifyCommand("git add src/index.ts")).toBe(PermissionTier.TIER_1);
-    expect(classifyCommand("git commit -m \"feat: init\"")).toBe(PermissionTier.TIER_1);
+    expect(classifyCommand('git commit -m "feat: init"')).toBe(PermissionTier.TIER_1);
     expect(classifyCommand("npm run build")).toBe(PermissionTier.TIER_1);
   });
 
@@ -42,7 +42,7 @@ describe("Permission Gate Command Classifier", () => {
   });
 
   it("should classify bare node as Tier 2 (not auto-allowed)", () => {
-    expect(classifyCommand("node -e \"console.log(1)\"")).toBe(PermissionTier.TIER_2);
+    expect(classifyCommand('node -e "console.log(1)"')).toBe(PermissionTier.TIER_2);
     expect(classifyCommand("node script.js")).toBe(PermissionTier.TIER_2);
   });
 
@@ -67,7 +67,7 @@ describe("Permission Gate Command Classifier", () => {
         defaultTier: 0,
         rules: [{ tier: 3, patterns: [] }],
       }),
-      "utf-8"
+      "utf-8",
     );
 
     config.workspaceRoot = tempRoot;

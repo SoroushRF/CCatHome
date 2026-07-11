@@ -12,9 +12,15 @@ import { runCommandDefinition, runCommandHandler } from "./process/run_command.j
 import { gitCommitDefinition, gitCommitHandler } from "./git/git_commit.js";
 import { gitDiffDefinition, gitDiffHandler } from "./git/git_diff.js";
 import { checkpointDefinition, checkpointHandler } from "./checkpoint/checkpoint.js";
-import { restoreCheckpointDefinition, restoreCheckpointHandler } from "./checkpoint/restore_checkpoint.js";
+import {
+  restoreCheckpointDefinition,
+  restoreCheckpointHandler,
+} from "./checkpoint/restore_checkpoint.js";
 import { createWorkflowDefinition, createWorkflowHandler } from "./workflow/create_workflow.js";
-import { getWorkflowStateDefinition, getWorkflowStateHandler } from "./workflow/get_workflow_state.js";
+import {
+  getWorkflowStateDefinition,
+  getWorkflowStateHandler,
+} from "./workflow/get_workflow_state.js";
 import { executeStepDefinition, executeStepHandler } from "./workflow/execute_step.js";
 import { rememberDefinition, rememberHandler } from "./memory/remember.js";
 import { recallDefinition, recallHandler } from "./memory/recall.js";
@@ -43,8 +49,8 @@ describe("Phase 1 Integration Gate (End-to-End)", () => {
 
     // Initialize clean git repository in integration directory
     await runCommandGated("git init");
-    await runCommandGated("git config user.email \"gate@ccathome.com\"");
-    await runCommandGated("git config user.name \"Gate CCatHome\"");
+    await runCommandGated('git config user.email "gate@ccathome.com"');
+    await runCommandGated('git config user.name "Gate CCatHome"');
     await runCommandGated("git checkout -b main");
 
     // Write initial source file
@@ -60,7 +66,7 @@ describe("Phase 1 Integration Gate (End-to-End)", () => {
 
     // Initial commit
     await runCommandGated("git add src/calculator.mjs");
-    await runCommandGated("git commit -m \"Initial calculator commit\"");
+    await runCommandGated('git commit -m "Initial calculator commit"');
 
     // Register capabilities
     registerCapability(applyPatchDefinition, applyPatchHandler);
@@ -154,8 +160,8 @@ describe("Phase 2 Integration Gate (End-to-End)", () => {
 
     // Initialize clean git repository in integration directory
     await runCommandGated("git init");
-    await runCommandGated("git config user.email \"gate2@ccathome.com\"");
-    await runCommandGated("git config user.name \"Gate2 CCatHome\"");
+    await runCommandGated('git config user.email "gate2@ccathome.com"');
+    await runCommandGated('git config user.name "Gate2 CCatHome"');
     await runCommandGated("git checkout -b main");
 
     // Write initial source file
@@ -166,12 +172,12 @@ describe("Phase 2 Integration Gate (End-to-End)", () => {
       `export function add(a, b) {
   return a - b; // bug
 }`,
-      "utf-8"
+      "utf-8",
     );
 
     // Initial commit
     await runCommandGated("git add src/calculator.mjs");
-    await runCommandGated("git commit -m \"Initial calculator commit\"");
+    await runCommandGated('git commit -m "Initial calculator commit"');
 
     // Register all Phase 2 capabilities
     registerCapability(applyPatchDefinition, applyPatchHandler);
@@ -203,7 +209,8 @@ describe("Phase 2 Integration Gate (End-to-End)", () => {
   it("should run the full E2E pipeline: create workflow -> execute step with failure recovery -> remember and recall logs", async () => {
     // 1. Create a memory rule
     const rememberRes = await invoke("remember", {
-      content: "Auto-fix loops must perform at least one validation check after recovery scripts execute.",
+      content:
+        "Auto-fix loops must perform at least one validation check after recovery scripts execute.",
       tags: ["pipeline", "validation"],
     });
     expect(rememberRes.success).toBe(true);
@@ -227,7 +234,7 @@ describe("Phase 2 Integration Gate (End-to-End)", () => {
       workflowId,
       stepId: "stepB",
       executionCommand: "node -e \"console.log('should not run')\"",
-      validationCommand: "node -e \"process.exit(0)\"",
+      validationCommand: 'node -e "process.exit(0)"',
       maxRetries: 0,
     });
     expect(blockedRes.success).toBe(true);
@@ -240,7 +247,9 @@ describe("Phase 2 Integration Gate (End-to-End)", () => {
 
     // 4. Set up files for Step B validation failure recovery
     // Validation script check.js checks for presence of fixed file content
-    fs.writeFileSync(path.join(TEST_DIR, "check.js"), `
+    fs.writeFileSync(
+      path.join(TEST_DIR, "check.js"),
+      `
       import fs from 'fs';
       const code = fs.readFileSync('src/calculator.mjs', 'utf-8');
       if (code.includes('a + b')) {
@@ -248,14 +257,20 @@ describe("Phase 2 Integration Gate (End-to-End)", () => {
       } else {
         process.exit(1);
       }
-    `, "utf-8");
+    `,
+      "utf-8",
+    );
 
     // Recovery script recover.js applies a patch to fix the file
-    fs.writeFileSync(path.join(TEST_DIR, "recover.js"), `
+    fs.writeFileSync(
+      path.join(TEST_DIR, "recover.js"),
+      `
       import fs from 'fs';
       const patch = 'export function add(a, b) {\\n  return a + b; // fixed\\n}';
       fs.writeFileSync('src/calculator.mjs', patch, 'utf-8');
-    `, "utf-8");
+    `,
+      "utf-8",
+    );
 
     // 5. Execute Step B using execute_step (auto-fix micro-loop)
     // Execution command just runs print, validation checks calculator content, recovery fixes it.
@@ -285,7 +300,9 @@ describe("Phase 2 Integration Gate (End-to-End)", () => {
     expect(autoMsg.stdout.trim()).toBe("[ccathome-auto] step stepB completed");
 
     // Verify DB states: workflow completed
-    const stepRow = db.prepare("SELECT status, retry_count, full_log FROM workflow_steps WHERE id = 'stepB'").get() as any;
+    const stepRow = db
+      .prepare("SELECT status, retry_count, full_log FROM workflow_steps WHERE id = 'stepB'")
+      .get() as any;
     expect(stepRow.status).toBe("completed");
     expect(stepRow.retry_count).toBe(1);
     expect(stepRow.full_log).toContain("Validation Exit Code: 1");

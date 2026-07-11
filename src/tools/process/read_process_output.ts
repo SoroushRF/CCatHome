@@ -12,15 +12,17 @@ export const readProcessOutputDefinition: CapabilityDefinition = {
   description: "Reads new output lines from a background process's log file.",
   inputSchema: z.object({
     pid: z.number().int().describe("The process ID (pid) of the active background process"),
-    fromLine: z.number().int().min(1).optional().describe("Optional 1-indexed line offset to start reading from"),
+    fromLine: z
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe("Optional 1-indexed line offset to start reading from"),
   }),
   tier: PermissionTier.TIER_0, // Tier 0: Always allowed reads
 };
 
-export async function readProcessOutputHandler(args: {
-  pid: number;
-  fromLine?: number;
-}): Promise<{
+export async function readProcessOutputHandler(args: { pid: number; fromLine?: number }): Promise<{
   success: boolean;
   lines?: string[];
   nextLineOffset?: number;

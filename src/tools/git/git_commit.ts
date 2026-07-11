@@ -13,10 +13,7 @@ export const gitCommitDefinition: CapabilityDefinition = {
   tier: PermissionTier.TIER_1, // Tier 1: Workspace writes / commits
 };
 
-export async function gitCommitHandler(args: {
-  message: string;
-  amend?: boolean;
-}): Promise<{
+export async function gitCommitHandler(args: { message: string; amend?: boolean }): Promise<{
   success: boolean;
   sha?: string;
   error?: string;
@@ -31,7 +28,8 @@ export async function gitCommitHandler(args: {
           return {
             success: false,
             error: "amend_conflicts_with_autocommit",
-            reason: "Amending a commit created automatically by the workflow engine is not allowed.",
+            reason:
+              "Amending a commit created automatically by the workflow engine is not allowed.",
           };
         }
       }

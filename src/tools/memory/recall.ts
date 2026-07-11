@@ -5,7 +5,8 @@ import { getDb } from "../../core/db.js";
 
 export const recallDefinition: CapabilityDefinition = {
   name: CapabilityName.RECALL,
-  description: "Retrieves matches for a query from the persistent memory database using BM25 FTS5 ranking.",
+  description:
+    "Retrieves matches for a query from the persistent memory database using BM25 FTS5 ranking.",
   inputSchema: z.object({
     query: z.string().describe("The search term or query to match against memories"),
     limit: z.number().optional().default(5).describe("Maximum number of results to return"),
@@ -28,14 +29,11 @@ function sanitizeFtsQuery(query: string): string {
   return query
     .replace(/[":*+\-&|!()[\]{}^~?]/g, " ")
     .split(/\s+/)
-    .filter(w => w.length > 0)
+    .filter((w) => w.length > 0)
     .join(" ");
 }
 
-export async function recallHandler(args: {
-  query: string;
-  limit?: number;
-}): Promise<{
+export async function recallHandler(args: { query: string; limit?: number }): Promise<{
   success: boolean;
   memories?: {
     id: string;
@@ -66,13 +64,17 @@ export async function recallHandler(args: {
 
   try {
     // 1. Attempt FTS5 MATCH query with BM25 ranking
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT key, value, category, bm25(project_memory) AS score
       FROM project_memory
       WHERE project_memory MATCH ?
       ORDER BY score ASC
       LIMIT ?
-    `).all(sanitizedQuery, limit) as RecallRow[];
+    `,
+      )
+      .all(sanitizedQuery, limit) as RecallRow[];
 
     return {
       success: true,
@@ -88,12 +90,16 @@ export async function recallHandler(args: {
     try {
       const escaped = args.query.replace(/([\\%_])/g, "\\$1");
       const wildcard = `%${escaped}%`;
-      const rows = db.prepare(`
+      const rows = db
+        .prepare(
+          `
         SELECT key, value, category, -1.0 AS score
         FROM project_memory
         WHERE value LIKE ? ESCAPE '\\' OR category LIKE ? ESCAPE '\\'
         LIMIT ?
-      `).all(wildcard, wildcard, limit) as RecallRow[];
+      `,
+        )
+        .all(wildcard, wildcard, limit) as RecallRow[];
 
       return {
         success: true,

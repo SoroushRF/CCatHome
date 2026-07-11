@@ -55,3 +55,7 @@ To execute dynamic code repair or intelligent self-healing based on compiler/tes
 1. The calling agent client (e.g. LLM/Claude) is responsible for monitoring tool outputs.
 2. If `execute_step` returns failure, the calling agent inspects the error logs, generates a target patch, and triggers a new `execute_step` call with a custom `recoveryCommand` containing the patch or repair action.
 3. The internal engine loop does **not** generate code fixes dynamically; it acts as a robust state executor for the calling agent client's repair directives.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

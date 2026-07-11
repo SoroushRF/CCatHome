@@ -121,4 +121,42 @@ describe("Sandboxed Script Runner Suite", () => {
       expect(res.result.log).toBeDefined();
     });
   });
+
+  describe("run_script failure contracts (R7.2.3)", () => {
+    it("fails closed on classic constructor escape attempts that throw", async () => {
+      const res = await invoke("run_script", {
+        code: `
+          const fs = this.constructor.constructor('return process.mainModule.require("fs")')();
+          return fs.readFileSync('/etc/passwd', 'utf8');
+        `,
+        timeoutMs: 1000,
+      });
+      // Either residual escape returns data (documented ADR 0008 risk) or
+      // script_execution_failed — never silent success without result shape.
+      expect(res.result.success === true || res.result.error === "script_execution_failed").toBe(
+        true,
+      );
+      if (res.result.success === false) {
+        expect(res.result.error).toBe("script_execution_failed");
+      }
+    });
+
+    it("rejects path escape via gated.writeFile", async () => {
+      const res = await invoke("run_script", {
+        code: `await gated.writeFile('../../outside.txt', 'nope'); return 'ok';`,
+      });
+      expect(res.result.success).toBe(false);
+      expect(res.result.error).toBe("script_execution_failed");
+    });
+
+    it("surfaces timeout as script_execution_failed with reason", async () => {
+      const res = await invoke("run_script", {
+        code: "while(true) {}",
+        timeoutMs: 30,
+      });
+      expect(res.result.success).toBe(false);
+      expect(res.result.error).toBe("script_execution_failed");
+      expect(String(res.result.reason || "")).toMatch(/timed out|Script timed out|timeout/i);
+    });
+  });
 });

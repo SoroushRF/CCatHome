@@ -1,33 +1,23 @@
 # Capability: `recall` (Tier B)
 
-Queries the persistent memory store utilizing BM25 text ranking over SQLite FTS5 search index.
+FTS5 BM25 recall with LIKE fallback (escaped wildcards).
 
 ## Input Schema
 
 ```typescript
-{
-  query: z.string().describe("The text search query to locate related project memories"),
-  category: z.string().optional().describe("Optional category to filter results")
-}
+{ query: z.string(), limit?: z.number() }
 ```
 
 ## Output Schema
 
 ```typescript
-{
-  success: boolean,
-  memories?: Array<{
-    id: string,
-    key: string,
-    value: string,
-    category: string,
-    createdAt: string
-  }>,
-  error?: string,
-  reason?: string
-}
+{ success: boolean, memories?: Array<{ id: string, content: string, tags: string[], score: number }>, error?: string, reason?: string }
 ```
 
 ## Failure Contract
 
-- Standard search failures return empty memories list.
+- Empty query → empty `memories`; DB errors structured.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

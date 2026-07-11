@@ -32,7 +32,9 @@ export function resolveSafePath(workspaceRoot: string, userPath: string): string
         // Ensure the existing ancestor is inside the real root
         const relativeAncestor = path.relative(realRoot, realCurrent);
         if (isPathEscape(relativeAncestor)) {
-          throw new Error(`path_traversal_detected: Path '${userPath}' escapes the workspace root via ancestor`);
+          throw new Error(
+            `path_traversal_detected: Path '${userPath}' escapes the workspace root via ancestor`,
+          );
         }
         break;
       }
@@ -43,7 +45,9 @@ export function resolveSafePath(workspaceRoot: string, userPath: string): string
   // 4. Verify final real path containment
   const realRelative = path.relative(realRoot, realTarget);
   if (isPathEscape(realRelative)) {
-    throw new Error(`path_traversal_detected: Path '${userPath}' escapes the workspace root via symlink`);
+    throw new Error(
+      `path_traversal_detected: Path '${userPath}' escapes the workspace root via symlink`,
+    );
   }
 
   return resolvedTarget;

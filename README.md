@@ -1,25 +1,28 @@
 # CCatHome
 
-`CCatHome` is a highly secure, portable, multi-step agentic execution engine that implements the Model Context Protocol (MCP). It allows LLMs to run commands, apply patches, track workflows, manage memory, and self-heal from failures within a sandboxed local environment.
+Portable MCP TypeScript server that gives coding agents a gated execution layer:
+workflow DAGs, checkpoints, permission-tiered shell/filesystem access, and HITL
+approvals — without claiming hard sandbox isolation.
 
 ---
 
 ## Features
 
-1. **Topological DAG Workflow Engine**: Schedules and runs workflow steps in topological order with cycle detection.
-2. **Gated Self-Healing Loop**: The `execute_step` capability utilizes copy-on-write checkpoints and Git reverts to recover workspace states and attempt auto-fixes on compilation/test failures.
-3. **VM Script Sandbox**: Executes ad-hoc scripts inside Node's native `vm` module. System calls (`runCommand`, `readFile`, `writeFile`) are routed back through the Permission Gate.
-4. **4-Tier Permission Gate**: Command classification prevents execution of blocked scripts (Tier 3) or requests explicit confirmation (Tier 2) using database state persistence.
-5. **Real-time SSE Dashboard**: Zero-dependency local web server on port `3141` streaming real-time workflow statuses, console log streams, checkpoints, and active background processes.
+1. **DAG workflow engine** — `create_workflow` validates acyclic graphs; `execute_step` refuses unmet dependencies.
+2. **Self-healing micro-loop** — caller-supplied `executionCommand` / `validationCommand` / optional `recoveryCommand`, with checkpoints, branch isolation (`ccathome/<workflowId>`), and `[ccathome-auto]` commits on success.
+3. **Permission gate** — 4-tier classification (`permission-rules.json`); Tier 2 needs dashboard or `CCATHOME_APPROVAL_TOKEN`; Tier 3 blocked.
+4. **VM script runner** — Node `vm` with timeout, frozen sandbox, and gated I/O. **Not a security boundary** (see ADR 0008); use alongside the gate and path containment.
+5. **Local dashboard** — HTTP/SSE on port `3141` with a startup launch token; HITL approve/reject UI.
 
 ---
 
 ## Security Model
 
-CCatHome implements strict path containment and execution gating:
-- **Workspace Isolation**: Filesystem operations resolve target realpaths via `fs.realpathSync`, catching symlink traversal escape attempts.
-- **Unanchored Gating**: Intercepts command chaining bypasses (e.g. `npm install && rm -rf /`) at the central gate.
-- **Dashboard Authorization**: Serves HTTP pages and Server-Sent Event (SSE) streams only when authenticated with a secure launch token or cookie.
+- **Path containment** — filesystem ops resolve realpaths under the workspace; sensitive paths (`.env`, `.git/hooks`, …) blocked.
+- **Gate + chaining** — shell metacharacters escalate past safe Tier 0/1 prefixes; pipe-to-shell / `curl|…` patterns are Tier 3.
+- **HITL** — agents cannot self-approve over MCP without `approvalToken`; approvals are single-use.
+- **Dashboard auth** — HTML/SSE/API require `?token=` or cookie; unauthenticated → 401.
+- **Residual risk** — Node `vm` can be escaped; treat as defense-in-depth only.
 
 ---
 
@@ -30,32 +33,75 @@ CCatHome implements strict path containment and execution gating:
 - Node.js 18+
 - Git
 
-### Installation
+### Install & build
 
 ```bash
-npm install
-```
-
-### Build
-
-```bash
+npm ci
 npm run build
 ```
 
-### Running Tests
+### Tests & lint
 
 ```bash
-npm run test
+npm test
+npm run lint
+npm run typecheck
 ```
 
-### Starting the Server
+### Start the MCP server
 
 ```bash
+npm start
+# or during development:
 npm run dev
 ```
+
+Optional workspace root (argv or env):
+
+```bash
+npm start /path/to/workspace
+# WORKSPACE_ROOT=/path/to/workspace npm start
+```
+
+On boot the server prints a dashboard URL with token, for example:
+
+```text
+Dashboard: http://localhost:3141/?token=<hex>
+```
+
+Open that URL to approve Tier 2 commands. For MCP-side approval mutations set:
+
+```bash
+export CCATHOME_APPROVAL_TOKEN='your-long-secret'
+```
+
+### MCP client sketch (Claude Code)
+
+```json
+{
+  "mcpServers": {
+    "ccathome": {
+      "command": "node",
+      "args": ["/absolute/path/to/CCatHome/dist/index.js", "/absolute/path/to/workspace"],
+      "env": {
+        "CCATHOME_APPROVAL_TOKEN": "your-long-secret"
+      }
+    }
+  }
+}
+```
+
+---
+
+## Docs
+
+- Product intent: [`PRD.md`](PRD.md) (v2.1)
+- Remediation plan: [`docs/plans/REMEDIATION_TO_90.md`](docs/plans/REMEDIATION_TO_90.md)
+- Tool contracts: [`docs/tools/`](docs/tools/)
+- ADRs: [`docs/adr/`](docs/adr/)
 
 ---
 
 ## License
 
-This project is licensed under the terms of the MIT License. See the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).

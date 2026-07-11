@@ -10,7 +10,10 @@ export const listDirectoryDefinition: CapabilityDefinition = {
   name: CapabilityName.LIST_DIRECTORY,
   description: "Lists the contents of a directory in the workspace.",
   inputSchema: z.object({
-    path: z.string().optional().describe("Path to the directory to list (resolved relative to workspace root)"),
+    path: z
+      .string()
+      .optional()
+      .describe("Path to the directory to list (resolved relative to workspace root)"),
   }),
   tier: PermissionTier.TIER_0, // Tier 0: Always allowed reads
 };
@@ -21,9 +24,7 @@ interface DirectoryItem {
   size?: number;
 }
 
-export async function listDirectoryHandler(args: {
-  path?: string;
-}): Promise<{
+export async function listDirectoryHandler(args: { path?: string }): Promise<{
   success: boolean;
   items?: DirectoryItem[];
   error?: string;

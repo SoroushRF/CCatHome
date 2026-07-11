@@ -1,28 +1,23 @@
 # Capability: `move_file` (Tier B)
 
-Moves or renames a file or directory within the workspace.
+Moves/renames within the workspace; blocks sensitive destinations.
 
 ## Input Schema
 
 ```typescript
-{
-  sourcePath: z.string().describe("The source path relative to the workspace root"),
-  destinationPath: z.string().describe("The destination path relative to the workspace root")
-}
+{ source: z.string(), destination: z.string() }
 ```
 
 ## Output Schema
 
 ```typescript
-{
-  success: boolean,
-  error?: string,
-  reason?: string
-}
+{ success: boolean, error?: string, reason?: string }
 ```
 
 ## Failure Contract
 
-- **`path_traversal_detected`**: If source or destination path escapes target workspace.
-- **`file_not_found`**: If source path does not exist.
-- **`move_failed`**: If renaming fails.
+- **`invalid_path`**, **`sensitive_path_blocked`**, missing source.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

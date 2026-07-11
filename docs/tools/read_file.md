@@ -1,13 +1,11 @@
 # Capability: `read_file` (Tier A)
 
-Reads the entire content of a file located within the workspace.
+Reads a workspace file. Files over ~300 lines return an outline + `fileId` instead of full content.
 
 ## Input Schema
 
 ```typescript
-{
-  path: z.string().describe("The path of the file to read relative to the workspace root")
-}
+{ path: z.string() }
 ```
 
 ## Output Schema
@@ -16,6 +14,10 @@ Reads the entire content of a file located within the workspace.
 {
   success: boolean,
   content?: string,
+  outline?: string,
+  totalLines?: number,
+  fileId?: string,
+  truncated?: boolean,
   error?: string,
   reason?: string
 }
@@ -23,6 +25,10 @@ Reads the entire content of a file located within the workspace.
 
 ## Failure Contract
 
-- **`path_traversal_detected`**: If target path resolves outside workspace root.
-- **`file_not_found`**: If the target file does not exist.
-- **`read_failed`**: If filesystem reading throws an system/permission error.
+- **`invalid_path`**: Path escapes workspace / resolve failure.
+- **`file_not_found`**: Missing file.
+- **`read_failed`**: I/O error.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

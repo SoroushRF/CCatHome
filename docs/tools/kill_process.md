@@ -1,26 +1,23 @@
 # Capability: `kill_process` (Tier B)
 
-Terminates a running background process.
+SIGKILLs a tracked background process and updates `command_log` status to `killed`.
 
 ## Input Schema
 
 ```typescript
-{
-  pid: z.number().describe("The process PID to terminate")
-}
+{ pid: z.number().int() }
 ```
 
 ## Output Schema
 
 ```typescript
-{
-  success: boolean,
-  error?: string,
-  reason?: string
-}
+{ success: boolean, error?: string, reason?: string }
 ```
 
 ## Failure Contract
 
-- **`process_not_found`**: If no process exists with the matching PID.
-- **`kill_failed`**: If terminating the process fails.
+- **`process_not_found`**, **`kill_failed`**.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

@@ -59,8 +59,8 @@ agent.
   its own file under `src/tools/<namespace>/<capability>.ts`. No file
   implements more than one capability, even when they're small.
 - **No tool implementation bypasses the Permission Gate.** This is checked
-  by a static lint rule (custom ESLint rule or equivalent), not just code
-  review discipline — a capability file that calls `child_process` or
+  by `scripts/lint-gate-bypass.js` (wired into `npm run lint`), not just
+  code review discipline — a capability file that calls `child_process` or
   filesystem write APIs directly, instead of through the gated execution
   helper, fails CI.
 - **Failure paths are written before success paths get reviewed.** A PR
@@ -70,7 +70,8 @@ agent.
 - **No magic strings for tiers, statuses, or capability names.** These are
   enums/constants defined once, imported everywhere. A literal string
   like `"completed"` appearing outside the constants file is a lint
-  violation.
+  violation. Enforced by `scripts/lint-no-magic-status.js` (wired into
+  `npm run lint`).
 
 ### 1.4 Repo Hygiene (General)
 
@@ -86,8 +87,9 @@ agent.
   what it's for, and why an existing dependency or a small amount of
   in-house code wasn't sufficient.
 - **No secrets, tokens, or local paths committed**, ever, including in
-  test fixtures. A pre-commit hook scans for common patterns; review
-  catches what the hook misses.
+  test fixtures. `scripts/lint-no-secrets.js` (via `npm run lint` / CI)
+  scans for common patterns. Husky is intentionally not required — CI
+  lint is the enforced gate; review catches what the scan misses.
 
 ---
 
@@ -107,8 +109,8 @@ here, in the same PR).
 2. Write `docs/tools/<name>.md` first: input schema, output schema, every
    failure mode and its payload shape.
 3. Implement behind the Permission Gate (no direct execution path).
-4. Add the tool to the Tier A count check in CI (the test that asserts
-   total registered schema count stays within budget — see PRD §8).
+4. Add the tool to the Tier A count check in CI (`TIER_A_BUDGET` in
+   `src/tools/registry.test.ts` — currently 12; see PRD §8).
 5. Update `CHANGELOG.md` with a `minor` version bump.
 
 ### 2.2 Adding a new Tier B (dispatcher-routed) capability

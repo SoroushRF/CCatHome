@@ -108,3 +108,10 @@ This document defines the 10 scaffolded project tasks used to evaluate the corre
   1. The state of files modified during the step is reverted to the pre-step SHA.
   2. Git history is rolled back to the pre-step SHA.
   3. The workflow step is marked `failed`.
+
+## Harness mapping (R7.4)
+
+| Task | Entry | Status |
+|------|-------|--------|
+| 1–10 | `npm run benchmark:v1 -- --task <id>` → `src/benchmarks/taskN.test.ts` | Implemented (scripted E2E; see `v1-results.md`) |
+| Unit / adversarial | `npm test` / `vitest run src/security` | See `v1-results.md` |

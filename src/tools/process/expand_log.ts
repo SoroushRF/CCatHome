@@ -42,7 +42,7 @@ export async function expandLogHandler(args: {
   try {
     logPath = resolveSafePath(
       config.workspaceRoot,
-      path.join(".ccathome", "logs", `cmd_${args.logId}.log`)
+      path.join(".ccathome", "logs", `cmd_${args.logId}.log`),
     );
   } catch (err: any) {
     return {

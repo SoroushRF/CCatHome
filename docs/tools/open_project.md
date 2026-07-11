@@ -1,34 +1,23 @@
 # Capability: `open_project` (Tier A)
 
-Opens a target project directory, dynamically switching the active workspace root to the specified path and performing initial project structure discovery.
+Retargets `config.workspaceRoot` to an existing directory under allowlist / initial-tree policy (ADR 0004). Leaving the initial tree requires Tier 2 confirmation.
 
 ## Input Schema
 
 ```typescript
-{
-  path: z.string().describe("The absolute path of the local project directory to open")
-}
+{ path: z.string() }
 ```
 
 ## Output Schema
 
 ```typescript
-{
-  success: boolean,
-  message?: string,
-  projectInfo?: {
-    language: string,
-    runtime: string,
-    packageManager: string,
-    entryPoints: string[],
-    dependencies: Record<string, string>
-  },
-  error?: string,
-  reason?: string
-}
+{ success: boolean, message?: string, projectInfo?: object, error?: string, reason?: string }
 ```
 
 ## Failure Contract
 
-- **`directory_not_found`**: If the target directory does not exist.
-- **`not_a_directory`**: If the specified target path resolves to a file instead of a directory.
+- Path must exist and resolve under policy; otherwise error/reason from workspace-retarget helper.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

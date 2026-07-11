@@ -8,16 +8,18 @@ import { prepareWorkspaceRetarget } from "../../core/workspace-retarget.js";
 
 export const detectWorkspaceDefinition: CapabilityDefinition = {
   name: CapabilityName.DETECT_WORKSPACE,
-  description: "Detects the project structure of the workspace, dynamically switching target workspace if path is specified.",
+  description:
+    "Detects the project structure of the workspace, dynamically switching target workspace if path is specified.",
   inputSchema: z.object({
-    path: z.string().optional().describe("Optional absolute path to dynamically switch the workspace target root to"),
+    path: z
+      .string()
+      .optional()
+      .describe("Optional absolute path to dynamically switch the workspace target root to"),
   }),
   tier: PermissionTier.TIER_0, // Tier 0: allowed (read-only inspect)
 };
 
-export async function detectWorkspaceHandler(args: {
-  path?: string;
-}): Promise<{
+export async function detectWorkspaceHandler(args: { path?: string }): Promise<{
   success: boolean;
   language: string;
   runtime: string;
@@ -56,7 +58,7 @@ export async function detectWorkspaceHandler(args: {
     if (fs.existsSync(packageJsonPath)) {
       runtime = "node";
       language = "javascript";
-      
+
       const pkgData = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
       dependencies = {
         ...(pkgData.dependencies || {}),
@@ -105,7 +107,7 @@ export async function detectWorkspaceHandler(args: {
       language = "python";
       runtime = "python";
       packageManager = fs.existsSync(pyprojectPath) ? "poetry/pip" : "pip";
-      
+
       if (fs.existsSync(path.join(root, "main.py"))) {
         entryPoints.push("main.py");
       } else if (fs.existsSync(path.join(root, "app.py"))) {

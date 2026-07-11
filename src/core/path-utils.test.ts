@@ -36,7 +36,7 @@ describe("Symlink Path Containment Verification Suite (Finding #8)", () => {
   it("should block reading/accessing files escaping the workspace via symlinks", () => {
     // Create symlink escaping the workspace root
     const symlinkPath = path.join(WORKSPACE_DIR, "escape_link");
-    
+
     try {
       fs.symlinkSync(OUTSIDE_DIR, symlinkPath, "dir");
     } catch (err: any) {
@@ -63,6 +63,8 @@ describe("Symlink Path Containment Verification Suite (Finding #8)", () => {
   it("should allow ..hidden filenames but block ../ traversal", () => {
     fs.writeFileSync(path.join(WORKSPACE_DIR, "..hidden"), "ok", "utf-8");
     expect(resolveSafePath(WORKSPACE_DIR, "..hidden")).toBe(path.join(WORKSPACE_DIR, "..hidden"));
-    expect(() => resolveSafePath(WORKSPACE_DIR, "../outside/secrets.txt")).toThrow(/path_traversal_detected/);
+    expect(() => resolveSafePath(WORKSPACE_DIR, "../outside/secrets.txt")).toThrow(
+      /path_traversal_detected/,
+    );
   });
 });
