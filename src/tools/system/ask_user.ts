@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { PermissionTier, CapabilityName } from "../../core/constants.js";
+import {
+  PermissionTier,
+  CapabilityName,
+  ConfirmationStatus,
+  StepStatus,
+} from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
 import { getDb } from "../../core/db.js";
 import { config } from "../../core/config.js";
@@ -45,25 +50,35 @@ export async function askUserHandler(args: {
     }
 
     // Find pending confirmation matching this command
-    const query = "SELECT id, step_id, status FROM pending_confirmations WHERE command = ? AND status = 'pending' ORDER BY created_at DESC LIMIT 1";
-    const queryParams: any[] = [args.command];
+    const query =
+      "SELECT id, step_id, status FROM pending_confirmations WHERE command = ? AND status = ? ORDER BY created_at DESC LIMIT 1";
+    const queryParams: any[] = [args.command, ConfirmationStatus.PENDING];
 
-    let pending = db.prepare(query).get(...queryParams) as { id: string; step_id: string | null; status: string } | undefined;
+    let pending = db.prepare(query).get(...queryParams) as
+      | { id: string; step_id: string | null; status: string }
+      | undefined;
 
     if (!pending) {
       // If not already exists, insert a new pending confirmation
       const newId = crypto.randomUUID();
       db.prepare(`
         INSERT INTO pending_confirmations (id, step_id, command, status)
-        VALUES (?, ?, ?, 'pending')
-      `).run(newId, config.activeStepId || null, args.command);
-      
-      pending = { id: newId, step_id: config.activeStepId || null, status: "pending" };
+        VALUES (?, ?, ?, ?)
+      `).run(newId, config.activeStepId || null, args.command, ConfirmationStatus.PENDING);
+
+      pending = {
+        id: newId,
+        step_id: config.activeStepId || null,
+        status: ConfirmationStatus.PENDING,
+      };
     }
 
     // If response is provided, resolve immediately (e.g. called from Dashboard/CLI)
     if (args.response) {
-      if (args.response !== "approved" && args.response !== "rejected") {
+      if (
+        args.response !== ConfirmationStatus.APPROVED &&
+        args.response !== ConfirmationStatus.REJECTED
+      ) {
         return {
           success: false,
           error: "invalid_response",
@@ -71,11 +86,20 @@ export async function askUserHandler(args: {
         };
       }
 
-      db.prepare("UPDATE pending_confirmations SET status = ? WHERE id = ?").run(args.response, pending.id);
+      db.prepare("UPDATE pending_confirmations SET status = ? WHERE id = ?").run(
+        args.response,
+        pending.id
+      );
 
       if (pending.step_id) {
-        const nextStepStatus = args.response === "approved" ? "running" : "failed";
-        db.prepare("UPDATE workflow_steps SET status = ? WHERE id = ?").run(nextStepStatus, pending.step_id);
+        const nextStepStatus =
+          args.response === ConfirmationStatus.APPROVED
+            ? StepStatus.RUNNING
+            : StepStatus.FAILED;
+        db.prepare("UPDATE workflow_steps SET status = ? WHERE id = ?").run(
+          nextStepStatus,
+          pending.step_id
+        );
       }
 
       return {
@@ -96,8 +120,10 @@ export async function askUserHandler(args: {
     const start = Date.now();
 
     while (Date.now() - start < timeout) {
-      const current = db.prepare("SELECT status FROM pending_confirmations WHERE id = ?").get(pending.id) as { status: string } | undefined;
-      if (current && current.status !== "pending") {
+      const current = db
+        .prepare("SELECT status FROM pending_confirmations WHERE id = ?")
+        .get(pending.id) as { status: string } | undefined;
+      if (current && current.status !== ConfirmationStatus.PENDING) {
         return {
           success: true,
           response: current.status,
