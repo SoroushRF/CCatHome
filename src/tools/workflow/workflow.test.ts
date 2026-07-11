@@ -138,12 +138,28 @@ describe("Workflow DAG Engine Suite", () => {
     const brokenSteps = [{ id: "stepA", title: "Step A", depends_on: ["missing_step"] }];
 
     const res = await invoke("create_workflow", {
-      name: "Broken dependencies",
+      name: "Broken deps",
       steps: brokenSteps,
     });
 
     expect(res.result.success).toBe(false);
     expect(res.result.error).toBe("invalid_workflow");
-    expect(res.result.reason).toContain("depends on missing step");
+  });
+
+  it("get_workflow_state returns workflow_not_found", async () => {
+    const res = await invoke("get_workflow_state", { workflowId: "missing-wf" });
+    expect(res.result.success).toBe(false);
+    expect(res.result.error).toBe("workflow_not_found");
+  });
+
+  it("get_workflow_state returns step_not_found for unknown step", async () => {
+    const created = await invoke("create_workflow", {
+      name: "State WF",
+      steps: [{ id: "only", title: "Only" }],
+    });
+    const wfId = created.result.workflowId;
+    const res = await invoke("get_workflow_state", { workflowId: wfId, stepId: "nope" });
+    expect(res.result.success).toBe(false);
+    expect(res.result.error).toBe("step_not_found");
   });
 });

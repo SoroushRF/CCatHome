@@ -75,6 +75,22 @@ describe("Dispatcher Discovery & Routing Suite (Step 3.1)", () => {
     expect(resNoMatch.result.matches.length).toBe(0);
   });
 
+  it("should cap list_capabilities matches at 5", async () => {
+    for (let i = 0; i < 8; i++) {
+      registerCapability(
+        {
+          name: `cap_extra_${i}`,
+          description: `extra capability ${i}`,
+          inputSchema: z.object({}),
+          tier: PermissionTier.TIER_1,
+        },
+        async () => ({}),
+      );
+    }
+    const res = await invoke("list_capabilities", { query: "cap_extra" });
+    expect(res.result.matches.length).toBeLessThanOrEqual(5);
+  });
+
   it("should route tool executions to Tier B via invoke", async () => {
     const invokeRes = await invoke("invoke", {
       capability: "remember_secret",

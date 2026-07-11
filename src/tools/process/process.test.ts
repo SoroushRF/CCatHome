@@ -165,5 +165,34 @@ describe("Process Capabilities Suite", () => {
       expect(res.result.error).toBe("log_setup_failed");
       fs.rmSync(blocker, { force: true });
     });
+
+    it("sets success false when exit code is nonzero", async () => {
+      const command = `node -e "process.exit(7)"`;
+      approveCommandForTests(command);
+      const res = await invoke("run_command", { command });
+      expect(res.result.success).toBe(false);
+      expect(res.result.exitCode).toBe(7);
+      expect(res.result.status).toBe("exited");
+    });
+  });
+
+  describe("expand_log / kill_process failure contracts", () => {
+    it("returns invalid_log_id for non-hex ids", async () => {
+      const res = await invoke("expand_log", { logId: "../etc/passwd" });
+      expect(res.result.success).toBe(false);
+      expect(res.result.error).toBe("invalid_log_id");
+    });
+
+    it("returns log_not_found for missing logs", async () => {
+      const res = await invoke("expand_log", { logId: "deadbeef" });
+      expect(res.result.success).toBe(false);
+      expect(res.result.error).toBe("log_not_found");
+    });
+
+    it("returns process_not_found for unknown pids", async () => {
+      const res = await invoke("kill_process", { pid: 999999991 });
+      expect(res.result.success).toBe(false);
+      expect(res.result.error).toBe("process_not_found");
+    });
   });
 });
