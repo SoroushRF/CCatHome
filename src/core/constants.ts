@@ -12,6 +12,23 @@ export enum WorkflowStatus {
   RUNNING = "running",
   COMPLETED = "completed",
   FAILED = "failed",
+  REQUIRES_CONFIRMATION = "requires_confirmation",
+}
+
+/** Per-step lifecycle statuses stored in `workflow_steps.status`. */
+export enum StepStatus {
+  PENDING = "pending",
+  RUNNING = "running",
+  COMPLETED = "completed",
+  FAILED = "failed",
+  REQUIRES_CONFIRMATION = "requires_confirmation",
+}
+
+/** Rows in `pending_confirmations.status`. */
+export enum ConfirmationStatus {
+  PENDING = "pending",
+  APPROVED = "approved",
+  REJECTED = "rejected",
 }
 
 export enum CommandStatus {
