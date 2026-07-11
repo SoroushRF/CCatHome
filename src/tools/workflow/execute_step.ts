@@ -43,6 +43,9 @@ export const executeStepDefinition: CapabilityDefinition = {
     validationCommand: z.string().describe("The command to run to validate if the step succeeded"),
     maxRetries: z
       .number()
+      .int()
+      .min(0)
+      .max(10)
       .default(3)
       .describe("Max recovery attempts after the initial try (0 = single attempt, no recovery)"),
     recoveryCommand: z
