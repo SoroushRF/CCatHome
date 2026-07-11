@@ -98,6 +98,35 @@ describe("Dispatcher & Router Skeleton", () => {
     expect(handlerSpy).not.toHaveBeenCalled();
   });
 
+  it("should execute Tier 2 capability after a single-use approval is granted", async () => {
+    const { getDb, closeDb } = await import("./db.js");
+    const { config } = await import("./config.js");
+    const { ConfirmationStatus } = await import("./constants.js");
+    const { approveCommandForTests } = await import("../test/approve-command.js");
+    closeDb();
+    config.activeStepId = null;
+    getDb(); // ensure db
+    const handlerSpy = vi.fn().mockResolvedValue({ status: "ran" });
+    registerCapability(
+      {
+        name: "test_confirm_approved",
+        description: "Tier 2 with approval",
+        inputSchema: z.object({}),
+        tier: PermissionTier.TIER_2,
+      },
+      handlerSpy,
+    );
+    approveCommandForTests("capability:test_confirm_approved", null, 1);
+    const res = await invoke("test_confirm_approved", {});
+    expect(res.success).toBe(true);
+    expect(handlerSpy).toHaveBeenCalledTimes(1);
+    // Single-use: second invoke needs a new approval
+    const res2 = await invoke("test_confirm_approved", {});
+    expect(res2.success).toBe(false);
+    expect(res2.error).toContain("requires_confirmation");
+    closeDb();
+  });
+
   it("should suggest the closest capability name on typo", async () => {
     registerCapability(
       {

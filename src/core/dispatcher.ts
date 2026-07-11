@@ -71,30 +71,68 @@ export async function invoke(capabilityName: string, args: any): Promise<InvokeR
   }
 
   if (definition.tier === PermissionTier.TIER_2) {
-    let confirmationId: string | undefined;
+    const capabilityCommand = `capability:${capabilityName}`;
     try {
       const db = getDb();
-      confirmationId = crypto.randomUUID();
-      db.prepare(
-        `
-        INSERT INTO pending_confirmations (id, step_id, command, status)
-        VALUES (?, ?, ?, ?)
-      `,
-      ).run(
-        confirmationId,
-        config.activeStepId || null,
-        `capability:${capabilityName}`,
-        ConfirmationStatus.PENDING,
-      );
+      let allowed = false;
+      let confirmationId: string | undefined;
+
+      db.transaction(() => {
+        let query = "SELECT id, status FROM pending_confirmations WHERE command = ?";
+        const queryParams: (string | null)[] = [capabilityCommand];
+        if (config.activeStepId) {
+          query += " AND step_id = ?";
+          queryParams.push(config.activeStepId);
+        } else {
+          query += " AND step_id IS NULL";
+        }
+        query += " ORDER BY created_at DESC LIMIT 1";
+
+        const existing = db.prepare(query).get(...queryParams) as
+          | { id: string; status: string }
+          | undefined;
+
+        if (existing && existing.status === ConfirmationStatus.APPROVED) {
+          db.prepare("DELETE FROM pending_confirmations WHERE id = ?").run(existing.id);
+          allowed = true;
+          return;
+        }
+
+        if (!existing || existing.status === ConfirmationStatus.REJECTED) {
+          confirmationId = crypto.randomUUID();
+          db.prepare(
+            `
+            INSERT INTO pending_confirmations (id, step_id, command, status)
+            VALUES (?, ?, ?, ?)
+          `,
+          ).run(
+            confirmationId,
+            config.activeStepId || null,
+            capabilityCommand,
+            ConfirmationStatus.PENDING,
+          );
+        } else {
+          confirmationId = existing.id;
+        }
+      })();
+
+      if (allowed) {
+        // Fall through to execute handler below
+      } else {
+        return {
+          success: false,
+          error: StepStatus.REQUIRES_CONFIRMATION,
+          tier: definition.tier,
+          confirmationId,
+        };
+      }
     } catch {
-      confirmationId = undefined;
+      return {
+        success: false,
+        error: StepStatus.REQUIRES_CONFIRMATION,
+        tier: definition.tier,
+      };
     }
-    return {
-      success: false,
-      error: StepStatus.REQUIRES_CONFIRMATION,
-      tier: definition.tier,
-      confirmationId,
-    };
   }
 
   // 3. Execute Handler
