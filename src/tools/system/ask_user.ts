@@ -179,6 +179,30 @@ export async function askUserHandler(args: {
           "Providing a clarification response via ask_user requires approvalToken matching CCATHOME_APPROVAL_TOKEN",
       };
     }
+    // Persist answer onto the latest pending clarification if any
+    try {
+      const pending = db
+        .prepare(
+          `SELECT id FROM pending_confirmations
+           WHERE status = ? AND (type = 'clarification' OR command LIKE 'clarification:%')
+           ORDER BY created_at DESC LIMIT 1`,
+        )
+        .get(ConfirmationStatus.PENDING) as { id: string } | undefined;
+      if (pending) {
+        try {
+          db.prepare(
+            "UPDATE pending_confirmations SET status = ?, answer_text = ? WHERE id = ?",
+          ).run(ConfirmationStatus.APPROVED, args.response, pending.id);
+        } catch {
+          db.prepare("UPDATE pending_confirmations SET status = ? WHERE id = ?").run(
+            ConfirmationStatus.APPROVED,
+            pending.id,
+          );
+        }
+      }
+    } catch {
+      // ignore persistence failures; still return the answer
+    }
     return {
       success: true,
       response: args.response,
@@ -222,14 +246,26 @@ export async function askUserHandler(args: {
   const timeout = 60000;
   const start = Date.now();
   while (Date.now() - start < timeout) {
-    const current = db
-      .prepare("SELECT status FROM pending_confirmations WHERE id = ?")
-      .get(newId) as { status: string } | undefined;
-    if (current && current.status !== ConfirmationStatus.PENDING) {
-      return {
-        success: true,
-        response: current.status,
-      };
+    try {
+      const current = db
+        .prepare("SELECT status, answer_text FROM pending_confirmations WHERE id = ?")
+        .get(newId) as { status: string; answer_text?: string | null } | undefined;
+      if (current && current.status !== ConfirmationStatus.PENDING) {
+        return {
+          success: true,
+          response: current.answer_text || current.status,
+        };
+      }
+    } catch {
+      const current = db
+        .prepare("SELECT status FROM pending_confirmations WHERE id = ?")
+        .get(newId) as { status: string } | undefined;
+      if (current && current.status !== ConfirmationStatus.PENDING) {
+        return {
+          success: true,
+          response: current.status,
+        };
+      }
     }
     await new Promise((resolve) => setTimeout(resolve, checkInterval));
   }

@@ -8,15 +8,18 @@ export interface PendingConfirmationRow {
   status: string;
   type?: string | null;
   question?: string | null;
+  answer_text?: string | null;
   created_at?: string;
 }
 
 /**
  * Apply approve/reject to a pending confirmation and sync step status.
+ * Optional answerText is stored for clarification flows.
  */
 export function resolvePendingConfirmation(
   id: string,
   response: ConfirmationStatus.APPROVED | ConfirmationStatus.REJECTED,
+  answerText?: string,
 ): { success: boolean; error?: string; reason?: string } {
   const db = getDb();
   const row = db
@@ -34,7 +37,16 @@ export function resolvePendingConfirmation(
     };
   }
 
-  db.prepare("UPDATE pending_confirmations SET status = ? WHERE id = ?").run(response, id);
+  try {
+    db.prepare("UPDATE pending_confirmations SET status = ?, answer_text = ? WHERE id = ?").run(
+      response,
+      answerText ?? null,
+      id,
+    );
+  } catch {
+    // Pre-migration DBs may lack answer_text
+    db.prepare("UPDATE pending_confirmations SET status = ? WHERE id = ?").run(response, id);
+  }
 
   if (row.step_id) {
     const nextStepStatus =
@@ -53,7 +65,7 @@ export function listPendingConfirmations(): PendingConfirmationRow[] {
   try {
     return db
       .prepare(
-        `SELECT id, step_id, command, status, type, question, created_at
+        `SELECT id, step_id, command, status, type, question, answer_text, created_at
          FROM pending_confirmations
          WHERE status = ?
          ORDER BY created_at DESC
@@ -61,15 +73,26 @@ export function listPendingConfirmations(): PendingConfirmationRow[] {
       )
       .all(ConfirmationStatus.PENDING) as PendingConfirmationRow[];
   } catch {
-    // Pre-migration DBs may lack type/question columns
-    return db
-      .prepare(
-        `SELECT id, step_id, command, status, created_at
-         FROM pending_confirmations
-         WHERE status = ?
-         ORDER BY created_at DESC
-         LIMIT 20`,
-      )
-      .all(ConfirmationStatus.PENDING) as PendingConfirmationRow[];
+    try {
+      return db
+        .prepare(
+          `SELECT id, step_id, command, status, type, question, created_at
+           FROM pending_confirmations
+           WHERE status = ?
+           ORDER BY created_at DESC
+           LIMIT 20`,
+        )
+        .all(ConfirmationStatus.PENDING) as PendingConfirmationRow[];
+    } catch {
+      return db
+        .prepare(
+          `SELECT id, step_id, command, status, created_at
+           FROM pending_confirmations
+           WHERE status = ?
+           ORDER BY created_at DESC
+           LIMIT 20`,
+        )
+        .all(ConfirmationStatus.PENDING) as PendingConfirmationRow[];
+    }
   }
 }
