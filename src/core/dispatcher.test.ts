@@ -112,7 +112,8 @@ describe("Dispatcher & Router Skeleton", () => {
     const res = await invoke("git_dff", {}); // Typo
 
     expect(res.success).toBe(false);
-    expect(res.error).toContain("Did you mean: git_diff?");
+    expect(res.error).toBe("unknown_capability");
+    expect(res.suggestion).toBe("git_diff");
   });
 
   it("should list only Tier B capabilities (not Tier A tools)", () => {

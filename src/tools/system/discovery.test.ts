@@ -95,8 +95,8 @@ describe("Dispatcher Discovery & Routing Suite (Step 3.1)", () => {
 
     expect(invokeRes.success).toBe(true); // invoke tool itself executed successfully
     expect(invokeRes.result.success).toBe(false); // but target tool invocation failed
-    expect(invokeRes.result.error).toContain("unknown_capability");
-    expect(invokeRes.result.error).toContain("remember_secret"); // suggestion
+    expect(invokeRes.result.error).toBe("unknown_capability");
+    expect(invokeRes.result.suggestion).toBe("remember_secret");
   });
 
   it("should allow dynamic workspace path configuration via detect_workspace", async () => {

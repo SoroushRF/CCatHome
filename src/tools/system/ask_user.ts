@@ -163,7 +163,7 @@ export async function askUserHandler(args: {
     };
   }
 
-  // Clarification flow — wait for dashboard/secret resolution (R4.3.5 expands persistence)
+  // Clarification flow — persist + wait for dashboard/secret resolution
   if (args.response) {
     if (!matchesApprovalSecret(args.approvalToken)) {
       return {
@@ -179,9 +179,54 @@ export async function askUserHandler(args: {
     };
   }
 
+  const question = args.question || "Clarification requested";
+  const newId = crypto.randomUUID();
+  try {
+    db.prepare(`
+      INSERT INTO pending_confirmations (id, step_id, command, status, type, question)
+      VALUES (?, ?, ?, ?, 'clarification', ?)
+    `).run(
+      newId,
+      config.activeStepId || null,
+      `clarification:${question.slice(0, 120)}`,
+      ConfirmationStatus.PENDING,
+      question
+    );
+  } catch {
+    // Fallback if type/question columns missing (pre-migration)
+    db.prepare(`
+      INSERT INTO pending_confirmations (id, step_id, command, status)
+      VALUES (?, ?, ?, ?)
+    `).run(
+      newId,
+      config.activeStepId || null,
+      `clarification:${question.slice(0, 120)}`,
+      ConfirmationStatus.PENDING
+    );
+  }
+
+  console.error(`\n[ASK_USER] Clarification: ${question}`);
+  console.error(`Please answer in the dashboard or via ask_user with approvalToken.`);
+
+  const checkInterval = 1000;
+  const timeout = 60000;
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    const current = db
+      .prepare("SELECT status FROM pending_confirmations WHERE id = ?")
+      .get(newId) as { status: string } | undefined;
+    if (current && current.status !== ConfirmationStatus.PENDING) {
+      return {
+        success: true,
+        response: current.status,
+      };
+    }
+    await new Promise((resolve) => setTimeout(resolve, checkInterval));
+  }
+
   return {
     success: false,
-    error: "awaiting_user",
-    reason: "Clarification pending dashboard or secret-backed response",
+    error: "timeout",
+    reason: "Clarification request timed out after 60 seconds",
   };
 }
