@@ -10,14 +10,14 @@ export interface GatedRunResult {
   exitCode: number;
 }
 
-/**
- * Executes a shell command directly without passing through the Permission Gate.
- * Only to be used internally by trusted system components (like checkpoint/rollback).
- */
-export async function runCommandUngated(command: string): Promise<GatedRunResult> {
+function spawnCollect(
+  file: string,
+  argv: string[],
+  options: { shell?: boolean | string } = {},
+): Promise<GatedRunResult> {
   return new Promise((resolve) => {
-    const child = child_process.spawn(command, {
-      shell: true,
+    const child = child_process.spawn(file, argv, {
+      shell: options.shell ?? false,
       cwd: config.workspaceRoot,
       env: scrubEnv(process.env),
       stdio: ["ignore", "pipe", "pipe"],
@@ -54,6 +54,23 @@ export async function runCommandUngated(command: string): Promise<GatedRunResult
       });
     });
   });
+}
+
+/**
+ * Executes a shell command string without the Permission Gate (shell:true).
+ * Prefer {@link runArgvUngated} for trusted internal git ops — this path exists
+ * only for legacy shell strings in checkpoint helpers during migration.
+ */
+export async function runCommandUngated(command: string): Promise<GatedRunResult> {
+  return spawnCollect(command, [], { shell: true });
+}
+
+/**
+ * Spawn a binary with argv (no shell) without the Permission Gate.
+ * Only for trusted engine-internal recovery (ADR 0010).
+ */
+export async function runArgvUngated(file: string, argv: string[]): Promise<GatedRunResult> {
+  return spawnCollect(file, argv, { shell: false });
 }
 
 /**
@@ -93,43 +110,5 @@ export async function runArgvGated(
     );
   }
 
-  return new Promise((resolve) => {
-    const child = child_process.spawn(file, argv, {
-      shell: false,
-      cwd: config.workspaceRoot,
-      env: scrubEnv(process.env),
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    const stdoutChunks: string[] = [];
-    const stderrChunks: string[] = [];
-    const killTimer = setTimeout(() => {
-      child.kill("SIGKILL");
-    }, 30_000);
-
-    child.stdout.on("data", (data) => {
-      stdoutChunks.push(data.toString());
-    });
-    child.stderr.on("data", (data) => {
-      stderrChunks.push(data.toString());
-    });
-
-    child.on("close", (code) => {
-      clearTimeout(killTimer);
-      resolve({
-        stdout: stdoutChunks.join("").trim(),
-        stderr: stderrChunks.join("").trim(),
-        exitCode: code ?? 0,
-      });
-    });
-
-    child.on("error", (err) => {
-      clearTimeout(killTimer);
-      resolve({
-        stdout: stdoutChunks.join("").trim(),
-        stderr: (stderrChunks.join("") + "\n" + err.message).trim(),
-        exitCode: 1,
-      });
-    });
-  });
+  return runArgvUngated(file, argv);
 }
