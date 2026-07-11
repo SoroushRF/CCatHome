@@ -32,25 +32,28 @@ interface RulesConfig {
 
 let cachedConfig: RulesConfig | null = null;
 
+/** Test-only: clear cached rules so the next classify reloads from disk. */
+export function resetRulesCache(): void {
+  cachedConfig = null;
+}
+
 function loadRulesConfig(): RulesConfig {
   if (cachedConfig) {
     return cachedConfig;
   }
 
-  // Define potential locations to resolve permission-rules.json
+  // ADR 0007: never load permission-rules.json from the target workspace.
+  // Only trust the server package / install path (and cwd as last-resort package root).
   const pathsToTry: string[] = [];
 
-  if (config.workspaceRoot) {
-    pathsToTry.push(path.resolve(config.workspaceRoot, "permission-rules.json"));
-  }
-  pathsToTry.push(path.resolve(process.cwd(), "permission-rules.json"));
-  
   try {
     const currentDir = path.dirname(fileURLToPath(import.meta.url));
     pathsToTry.push(path.resolve(currentDir, "../../permission-rules.json"));
   } catch (_e) {
     // Ignore in non-ESM/test contexts
   }
+
+  pathsToTry.push(path.resolve(process.cwd(), "permission-rules.json"));
 
   for (const rootPath of pathsToTry) {
     try {
