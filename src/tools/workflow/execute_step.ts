@@ -17,6 +17,7 @@ import {
   areStepDependenciesMet,
   getRunnableSteps,
 } from "../../core/workflow-engine.js";
+import { summarizeAttemptLog } from "../../core/context-manager.js";
 import { ensureBranchIsolation, runGit } from "../../core/git-utils.js";
 import { resolveSafePath } from "../../core/path-utils.js";
 import { safeWriteFile } from "../../core/safe-write.js";
@@ -24,10 +25,7 @@ import { safeWriteFile } from "../../core/safe-write.js";
 const SUMMARY_MAX_CHARS = 2000;
 
 function buildSummary(fullLog: string): string {
-  if (fullLog.length <= SUMMARY_MAX_CHARS) {
-    return fullLog;
-  }
-  return `${fullLog.slice(0, SUMMARY_MAX_CHARS)}\n...[truncated]`;
+  return summarizeAttemptLog(fullLog, SUMMARY_MAX_CHARS);
 }
 
 function persistAttemptLog(fullLog: string): string {
