@@ -87,8 +87,9 @@ agent.
   what it's for, and why an existing dependency or a small amount of
   in-house code wasn't sufficient.
 - **No secrets, tokens, or local paths committed**, ever, including in
-  test fixtures. `scripts/lint-no-secrets.js` (via `npm run lint`) scans
-  for common patterns; review catches what the hook misses.
+  test fixtures. `scripts/lint-no-secrets.js` (via `npm run lint` / CI)
+  scans for common patterns. Husky is intentionally not required — CI
+  lint is the enforced gate; review catches what the scan misses.
 
 ---
 
