@@ -155,21 +155,25 @@ export async function executeStepHandler(args: {
       attemptLogs += `Execution Stdout:\n${execRes.stdout}\n`;
       attemptLogs += `Execution Stderr:\n${execRes.stderr}\n\n`;
 
-      // C. Run Validation Command
-      attemptLogs += `Running validation: ${args.validationCommand}\n`;
-      const valRes = await runCommandGated(args.validationCommand);
-      attemptLogs += `Validation Exit Code: ${valRes.exitCode}\n`;
-      attemptLogs += `Validation Stdout:\n${valRes.stdout}\n`;
-      attemptLogs += `Validation Stderr:\n${valRes.stderr}\n\n`;
+      // C. Run Validation Command only after a successful execution exit
+      if (execRes.exitCode !== 0) {
+        attemptLogs += `Execution failed with exit code ${execRes.exitCode}.\n`;
+      } else {
+        attemptLogs += `Running validation: ${args.validationCommand}\n`;
+        const valRes = await runCommandGated(args.validationCommand);
+        attemptLogs += `Validation Exit Code: ${valRes.exitCode}\n`;
+        attemptLogs += `Validation Stdout:\n${valRes.stdout}\n`;
+        attemptLogs += `Validation Stderr:\n${valRes.stderr}\n\n`;
 
-      if (valRes.exitCode === 0) {
-        success = true;
-        break;
+        if (valRes.exitCode === 0) {
+          success = true;
+          break;
+        }
       }
 
-      // D. Validation failed: Rollback state to checkpoint
+      // D. Execution or validation failed: Rollback state to checkpoint
       if (attempt <= args.maxRetries) {
-        attemptLogs += `Validation failed. Restoring checkpoint ${checkpointId}...\n`;
+        attemptLogs += `Attempt failed. Restoring checkpoint ${checkpointId}...\n`;
         const restoreRes = await restoreCheckpointHandler({ checkpointId });
         if (!restoreRes.success) {
           attemptLogs += `Restore checkpoint failed: ${restoreRes.reason}\n`;
@@ -185,7 +189,7 @@ export async function executeStepHandler(args: {
           attemptLogs += `Recovery Stderr:\n${recRes.stderr}\n\n`;
         }
       } else {
-        attemptLogs += `Validation failed and max retries (${args.maxRetries}) reached.\n`;
+        attemptLogs += `Attempt failed and max retries (${args.maxRetries}) reached.\n`;
       }
     }
   } catch (err: any) {

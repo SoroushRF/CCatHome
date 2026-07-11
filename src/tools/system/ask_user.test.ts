@@ -129,9 +129,9 @@ describe("Human-in-the-Loop Confirmation Suite (Step 3.2)", () => {
     });
 
     expect(resumeRes.success).toBe(true);
-    // Since "git push" runs now, it will fail with exit code 128 (No configured destination),
-    // and since validation checks return exit code 0, the step will still be completed successfully!
-    expect(resumeRes.result.success).toBe(true);
-    expect(resumeRes.result.status).toBe("completed");
+    // git push is approved and runs, but exits nonzero without a remote — success
+    // requires both execution and validation exit 0 (ADR 0005 / R3.3.1).
+    expect(resumeRes.result.success).toBe(false);
+    expect(resumeRes.result.status).toBe("failed");
   });
 });

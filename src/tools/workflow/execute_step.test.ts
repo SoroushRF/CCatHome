@@ -273,6 +273,31 @@ describe("Execute Step Compound Loop Suite", () => {
     expect(stepRow.status).toBe("failed");
     expect(stepRow.retry_count).toBe(2);
     expect(stepRow.full_log).toContain("=== Attempt 3 ===");
-    expect(stepRow.full_log).toContain("Validation failed and max retries (2) reached.");
+    expect(stepRow.full_log).toContain("Attempt failed and max retries (2) reached.");
+  });
+
+  it("should treat nonzero execution exit as failure even if validation would pass", async () => {
+    saveWorkflow("wf-exec-fail", "Exec Fail", [{ id: "stepExecFail", title: "Bad exec" }]);
+    fs.writeFileSync(path.join(TEST_DIR, "exec.js"), "process.exit(7);", "utf-8");
+    fs.writeFileSync(path.join(TEST_DIR, "check.js"), "process.exit(0);", "utf-8");
+
+    approveCommandForTests("node exec.js", "stepExecFail");
+    approveCommandForTests("node check.js", "stepExecFail");
+    const res = await invoke("execute_step", {
+      workflowId: "wf-exec-fail",
+      stepId: "stepExecFail",
+      executionCommand: "node exec.js",
+      validationCommand: "node check.js",
+      maxRetries: 0,
+    });
+
+    expect(res.result.success).toBe(false);
+    expect(res.result.status).toBe("failed");
+    const db = getDb();
+    const stepRow = db
+      .prepare("SELECT full_log FROM workflow_steps WHERE id = 'stepExecFail'")
+      .get() as { full_log: string };
+    expect(stepRow.full_log).toContain("Execution Exit Code: 7");
+    expect(stepRow.full_log).not.toContain("Validation Exit Code:");
   });
 });
