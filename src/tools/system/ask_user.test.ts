@@ -109,7 +109,7 @@ describe("Human-in-the-Loop Confirmation Suite (Step 3.2)", () => {
       stepId: "stepA",
       executionCommand: "git push",
       validationCommand: "node -e \"process.exit(0)\"",
-      maxRetries: 1
+      maxRetries: 0
     });
 
     expect(execRes.success).toBe(true);
@@ -159,7 +159,7 @@ describe("Human-in-the-Loop Confirmation Suite (Step 3.2)", () => {
       stepId: "stepA",
       executionCommand: "git push", // should execute now since it is approved
       validationCommand,
-      maxRetries: 1
+      maxRetries: 0
     });
 
     expect(resumeRes.success).toBe(true);

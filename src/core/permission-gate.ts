@@ -163,7 +163,7 @@ export function classifyAndGate(command: string): { allowed: boolean; tier: Perm
       // Wrap checks and insertions inside a single transaction to prevent SELECT-then-INSERT races
       db.transaction(() => {
         // Check if this command has been approved for the active step
-        let query = "SELECT status FROM pending_confirmations WHERE command = ?";
+        let query = "SELECT id, status FROM pending_confirmations WHERE command = ?";
         const queryParams: any[] = [command];
 
         if (config.activeStepId) {
@@ -175,9 +175,13 @@ export function classifyAndGate(command: string): { allowed: boolean; tier: Perm
 
         query += " ORDER BY created_at DESC LIMIT 1";
 
-        const existing = db.prepare(query).get(...queryParams) as { status: string } | undefined;
+        const existing = db.prepare(query).get(...queryParams) as
+          | { id: string; status: string }
+          | undefined;
 
         if (existing && existing.status === ConfirmationStatus.APPROVED) {
+          // Single-use: consume approval so a second identical command needs a new grant
+          db.prepare("DELETE FROM pending_confirmations WHERE id = ?").run(existing.id);
           allowed = true;
           return;
         }
