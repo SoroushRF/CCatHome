@@ -134,4 +134,37 @@ describe("Process Capabilities Suite", () => {
     expect(res.result.success).toBe(false);
     expect(res.result.error).toBe("permission_denied");
   });
+
+  describe("run_command failure contracts (R7.2.2)", () => {
+    it("returns requires_confirmation for Tier 2 without approval", async () => {
+      const res = await invoke("run_command", { command: "git push" });
+      expect(res.result.success).toBe(false);
+      expect(res.result.error).toBe("requires_confirmation");
+    });
+
+    it("returns invalid_readiness_pattern when pattern is too long", async () => {
+      const command = `node -e "console.log('x')"`;
+      approveCommandForTests(command);
+      const res = await invoke("run_command", {
+        command,
+        readinessPattern: "a".repeat(201),
+      });
+      expect(res.result.success).toBe(false);
+      expect(res.result.error).toBe("invalid_readiness_pattern");
+    });
+
+    it("returns log_setup_failed when logs directory cannot be created", async () => {
+      const logsParent = path.join(TEST_DIR, ".ccathome");
+      fs.mkdirSync(logsParent, { recursive: true });
+      const blocker = path.join(logsParent, "logs");
+      fs.writeFileSync(blocker, "not-a-dir", "utf-8");
+      const command = `node -e "console.log('hi')"`;
+      approveCommandForTests(command);
+      const res = await invoke("run_command", { command });
+      expect(res.result.success).toBe(false);
+      expect(res.result.error).toBe("log_setup_failed");
+      fs.rmSync(blocker, { force: true });
+    });
+  });
+
 });
