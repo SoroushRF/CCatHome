@@ -12,6 +12,7 @@ describe("Permission Gate Security Hardening Suite (Findings #1, #2, #4)", () =>
 
   it("should classify dangerous git destructive operations as Tier 2", () => {
     expect(classifyCommand("git checkout main")).toBe(PermissionTier.TIER_1);
+    expect(classifyCommand("git checkout -b feature")).toBe(PermissionTier.TIER_1);
     expect(classifyCommand("git checkout -- .")).toBe(PermissionTier.TIER_2);
     expect(classifyCommand("git checkout .")).toBe(PermissionTier.TIER_2);
     expect(classifyCommand("git reset --hard HEAD")).toBe(PermissionTier.TIER_2);

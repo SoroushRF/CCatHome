@@ -33,10 +33,10 @@
         "^tsc",
         "^git init$",
         "^git config\\b",
-        "^git checkout\\b",
-        "^git reset\\b",
         "^git branch\\b",
-        "^write_file\\b"
+        "^write_file\\b",
+        "^git checkout -b\\s+",
+        "^git checkout\\s+[^-]"
       ]
     },
     {
