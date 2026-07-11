@@ -33,4 +33,32 @@ jobs:
       run: npm run typecheck
 
     - name: Test
+      # Tier A budget asserted in src/index.test.ts (TIER_A_BUDGET / ADR 0004)
       run: npm run test
+
+    - name: Coverage
+      run: npm run coverage
+
+  adversarial:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+    - run: npm ci
+    - name: Adversarial security suite
+      run: npm run test:adversarial
+
+  format-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+    - run: npm ci
+    - name: Prettier check
+      run: npm run format:check
