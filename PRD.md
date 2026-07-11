@@ -1,7 +1,7 @@
-# PRD v2.0 — `CCatHome`
+# PRD v2.1 — `CCatHome`
 
-**Document status:** Draft for engineering review
-**Version:** 2.0.0 (supersedes v1.0 — see Changelog)
+**Document status:** Accepted for engineering
+**Version:** 2.1.0 (supersedes v2.0.0 — see Changelog §0.1)
 **Owner:** Soroush
 **Classification:** Internal design document
 
@@ -9,13 +9,29 @@
 
 ## 0. Document Control
 
-### 0.1 Changelog from v1.0
+### 0.1 Changelog
+
+#### From v2.0.0 → v2.1.0 (remediation track)
+
+| # | v2.0 Problem | v2.1 Resolution |
+|---|---|---|
+| 1 | Tier A budget listed as 11; `open_project` undocumented | Budget is **12** including `open_project` (ADR 0004) |
+| 2 | `execute_step` described as engine-owned auto-resolve + internal auto-fix | Caller-supplied commands + engine duties (ADR 0003 / 0005) |
+| 3 | Memory API documented as `key`/`value`/`category` | Public API is `content`/`tags` / `query`/`limit` (ADR 0006) |
+| 4 | Context Manager claimed as universal central wrapper | Module `src/core/context-manager.ts` used selectively by high-output tools |
+| 5 | Open `vm` vs `isolated-vm` decision (§11 dangling) | Keep Node `vm` with mitigations; residual risk (ADR 0001 / 0008) |
+| 6 | Schema omitted HITL / summary / uniqueness | Document migrations 0002–0005 (`requires_confirmation`, `pending_confirmations`, `summary`) |
+| 7 | Dashboard token deferred to hypothetical v2 HTTP | v1 dashboard on `:3141` requires startup token (ADR 0009) |
+| 8 | Permission tiers listed `npm i` as Tier 0 | `npm install`/`ci` are Tier 2; bare `node` is Tier 2 |
+
+#### From v1.0 → v2.0.0
+
 
 | # | v1.0 Problem | v2.0 Resolution |
 |---|---|---|
 | 1 | `stream_command` assumed stdio supports server-initiated push | Replaced with log-file + polling model (§4.3) |
-| 2 | "Embedded vector store" named with no implementation behind it | Replaced with SQLite FTS5 for v1; vector search explicitly deferred with a defined upgrade path (§7.3) |
-| 3 | No design for context window pressure | Context Manager is now a first-class architectural layer (§4.4) |
+| 2 | "Embedded vector store" named with no implementation behind it | Replaced with SQLite FTS5 for v1; vector search explicitly deferred with a defined upgrade path (§4.6 / `project_memory`) |
+| 3 | No design for context window pressure | Context Manager is now a first-class architectural layer (§4.3) |
 | 4 | Security requirements stated without enforcement mechanism | 4-tier permission classification system with defined enforcement points (§6) |
 | 5 | Implementation plan had no verifiable deliverables or exit criteria | Every phase below has explicit deliverables, acceptance criteria, and an integration gate (§9) |
 | 6 | Success metrics had no benchmark methodology | Metrics now specify dataset, harness, and measurement procedure (§10) |
@@ -55,7 +71,7 @@ Explicitly out of scope for this version, with rationale:
 | Browser automation (Playwright suite) | Adds a second automation surface and a new dependency tree before the core loop is proven. Revisit in v2 once the workflow engine and self-healing loop are validated in production use. |
 | Docker-based sandboxing | Rejected as a default, not merely deferred — adds a hard dependency that contradicts the "local desktop tool" UX goal. May be offered as an *opt-in* execution backend in v2 for users who already have Docker. |
 | Sub-agent orchestration / multi-agent delegation | Out of scope until the single-agent loop has a measured success rate (§10). Adding delegation before the base loop is reliable compounds failure modes. |
-| Semantic (vector) memory recall | Deferred to v2. FTS5 is the v1 backing store; schema is designed to accept a vector index later without breaking the `recall` tool contract (§7.3). |
+| Semantic (vector) memory recall | Deferred to v2. FTS5 is the v1 backing store; schema is designed to accept a vector index later without breaking the `recall` tool contract (§4.6). |
 | LSP-grade code intelligence (`find_definition`, `find_references`) | Cut entirely from v1, not deferred. Pattern-based `detect_workspace` output is sufficient for the orientation use case; full LSP integration is a substantial project on its own and is not on the critical path to the core differentiator (the workflow + self-healing loop). |
 | Windows-native shell parity | v1 targets macOS/Linux shells (`bash`/`zsh`). Windows support (`PowerShell` abstraction) is a tracked v2 item, not silently assumed working. |
 
@@ -104,7 +120,7 @@ No part of this system's correctness depends on a client-native feature being pr
 |                                                                   |
 |  +----------------+   +------------------+   +-----------------+ |
 |  | Tier A Tools   |   | Dispatcher        |   | Context Manager | |
-|  | (11 direct)    |-->| invoke() +        |-->| (truncation,    | |
+|  | (12 direct)    |-->| invoke() +        |-->| (truncation,    | |
 |  |                |   | list_capabilities |   |  log_id/expand) | |
 |  +----------------+   +------------------+   +-----------------+ |
 |           |                     |                      |          |
@@ -171,13 +187,12 @@ No part of this system's correctness depends on a client-native feature being pr
 
 ### 4.3 Context Manager (new in v2 — was entirely absent in v1)
 
-This is a cross-cutting layer, not a tool. Every capability response passes through it before being returned to the client.
+Cross-cutting helpers live in `src/core/context-manager.ts` (`truncateChars`, `truncateLines`, `tailLines`, `outlineSource`, `summarizeCommandOutput`, `summarizeAttemptLog`). High-output tools call these helpers; this is **selective adoption**, not a universal response wrapper around every capability.
 
-**Rules enforced:**
-- `read_file` on a file over ~300 lines returns an outline (top-level declarations + line count + a `fileId`), not the full content. The model retrieves specific ranges via `read_file_section(path, start, end)` (Tier B).
-- `run_command` / `execute_step` output is capped at the last 20 lines + total line count + exit code + a `logId`. Full output is recoverable via `expand_log(logId, fromLine, toLine)` (Tier B).
-- Completed workflow steps store their full execution record (commands run, diffs applied, logs) in SQLite. The model's context only ever holds `{ stepId, status, oneLineSummary }` — full detail is fetched on demand via `get_workflow_state(stepId?)`.
-- This is enforced centrally, in one response-formatting function used by every capability, so no individual tool implementation can accidentally leak an unbounded payload into context.
+**Rules enforced today:**
+- `read_file` on a file over ~300 lines returns an outline via `outlineSource` plus `totalLines` + `fileId`. Specific ranges use `read_file_section` (Tier B).
+- `run_command` caps stdout/stderr with `tailLines(..., 20)` and always returns a hex `logId`. Full logs via `expand_log({ logId })`.
+- `execute_step` stores complete `full_log` in SQLite and returns a truncated `summary` (also column `workflow_steps.summary`). `get_workflow_state` defaults to `summary` and only includes `fullLog` when `includeFullLog: true`.
 
 ### 4.4 Git Version Control Subsystem
 
@@ -187,54 +202,56 @@ This is a cross-cutting layer, not a tool. Every capability response passes thro
 ### 4.5 State & Workflow Engine
 
 - DAG state machine in SQLite, schema below (§7).
-- `execute_step` is the compound execution primitive (this is the system's core differentiator, carried forward from the design discussion):
+- `execute_step` is the compound execution primitive (ADR 0003 / 0005). The **client supplies** `executionCommand`, `validationCommand`, and optional `recoveryCommand`; the engine enforces safety and loop duties:
 
 ```
-execute_step(step_id?) internal sequence:
-  resolve target step (explicit id, or next runnable node with satisfied deps)
-  → run pre-step checkpoint
-  → execute step's defined action (install / write / build / etc.)
-  → run validation (lint, typecheck, test — whichever are configured)
-  → if validation fails AND retry_count < threshold:
-        attempt auto-fix pass → re-run validation
-  → on success: commit, mark step COMPLETED, return summary
-  → on exhausted retries: mark step FAILED, return structured failure report,
-    do NOT auto-rollback (rollback is a deliberate, separate, loggable action)
+execute_step({ workflowId, stepId, executionCommand, validationCommand, maxRetries, recoveryCommand? }):
+  refuse if dependencies unmet → error dependencies_unmet
+  → ensureBranchIsolation(workflowId)   // ccathome/<workflowId>
+  → checkpoint
+  → run executionCommand (nonzero exit = failure; skip validation)
+  → run validationCommand (must exit 0)
+  → on failure and retries remain: restore checkpoint; run recoveryCommand (nonzero aborts loop)
+  → on success: auto-commit with [ccathome-auto] when dirty; mark COMPLETED; return { summary, logId, retryCount }
+  → on exhausted retries / confirmation: FAILED or requires_confirmation
 ```
 
-  This entire sequence is one tool call from the model's perspective. It is the direct, server-side equivalent of programmatic tool calling — the model never sees the individual lint/build/test sub-calls, only the final structured result.
+  `maxRetries: 0` = one attempt; `maxRetries: N` = one initial + up to N recovery cycles. Dynamic patch generation stays with the calling agent (ADR 0003).
 
 ### 4.6 Memory Subsystem
 
 - Backing store: SQLite FTS5 (BM25 ranking) — chosen over a vector store for v1 because the memory content (architecture decisions, preferences, recurring bugs) is short, structured, and keyword-dense; semantic recall adds complexity without proportional benefit at this stage.
-- `remember(key, value, category)` and `recall(query, category?)` are Tier B.
-- **Upgrade path, defined now so it isn't a future redesign:** the `project_memory` table gets an additional nullable `embedding BLOB` column from day one. v2 can populate it via `sqlite-vec` and have `recall` check for embeddings before falling back to FTS5, without changing the tool's input/output contract.
+- Public Tier B API (ADR 0006): `remember({ content, tags? })` → `{ success, memoryId }`; `recall({ query, limit? })` → `{ success, memories: [{ id, content, tags, score }] }`. Storage columns remain FTS `key`/`value`/`category` (id → key, content → value, tags JSON → category).
+- **Upgrade path:** `project_memory` includes nullable `embedding` UNINDEXED from day one. v2 may populate via `sqlite-vec` without changing the public tool contract.
 
 ### 4.7 Execution Sandbox & Script Runner (PTC equivalent)
 
-- `run_script(code: string)` executes inside a restricted Node `vm` context (or `isolated-vm` if stricter isolation is needed after security review — tracked as an open decision in §11). Bound functions inside the sandbox map 1:1 to internal capabilities (`readFile`, `writeFile`, `runCommand`, etc.).
-- **Critical correction from the design discussion:** the Permission Tier Gate (§6) wraps calls *made from inside the script*, individually, not just the top-level `run_script` invocation. A script that internally calls the bound `runCommand("rm -rf /")` is intercepted at that inner call, exactly as if it had been called directly. This closes the sandbox-bypass risk that a naive implementation would reopen.
-- Only the script's final return value (plus a capped log of what it did) returns to the model's context.
+- `run_script({ code, timeoutMs? })` executes inside Node's `vm` module (ADR 0001 / 0008). **Decision closed:** keep `vm` for v1; it is **not** a hard security boundary. Mitigations: default timeout (5s, capped), frozen sandbox object, buffered `console` → capped `log[]`, writes via `safeWriteFile`, bound `runCommand`/`readFile`/`writeFile` gated individually.
+- Residual risk: prototype-chain / host escape payloads may still reach Node APIs; treat sandbox as defense-in-depth alongside the Permission Gate and path containment, not as isolation equivalent to `isolated-vm` or containers.
+- Only the script's final return value (plus a capped action log) returns to the model's context.
 
 ---
 
 ## 5. Tool Architecture
 
-### 5.1 Tier A — Directly Registered (11 tools)
+### 5.1 Tier A — Directly Registered (12 tools)
+
+Budget constant: `TIER_A_BUDGET = 12` in `src/core/dispatcher.ts` (ADR 0004).
 
 | Tool | Input | Output | Notes |
 |---|---|---|---|
 | `invoke` | `{ capability: string, args: object }` | capability-specific | Dispatcher executor |
-| `list_capabilities` | `{ query?: string }` | `{ matches: Array<{ name, description, schema }> }` | Never includes Tier A tool names (§5.3) |
-| `execute_step` | `{ step_id?: string }` | `{ step_id, status, summary, logId }` | Compound micro-loop, §4.5 |
-| `run_script` | `{ code: string }` | `{ result: any, log: string[] }` | Sandboxed orchestrator, §4.7 |
+| `list_capabilities` | `{ query?: string }` | `{ matches: Array<{ name, description, schema }> }` (≤5) | Never includes Tier A names (§5.3) |
+| `execute_step` | `{ workflowId, stepId, executionCommand, validationCommand, maxRetries?, recoveryCommand? }` | `{ success, status, stepId, summary, retryCount, logId? }` | Caller commands + engine duties, §4.5 / ADR 0005 |
+| `run_script` | `{ code: string, timeoutMs? }` | `{ result?: any, log: string[] }` | Sandboxed orchestrator, §4.7 |
 | `read_file` | `{ path: string }` | outline or content + `fileId` | Context-managed, §4.3 |
-| `apply_patch` | `{ path, patch, expectedSha? }` | see §4.1 failure contract | |
-| `run_command` | `{ command: string, timeoutMs? }` | `{ stdout, stderr, exitCode, logId }` | Ad-hoc only, not build/test |
-| `detect_workspace` | `{}` | `{ language, runtime, packageManager, entryPoints, dependencies }` | Session anchor call |
-| `create_workflow` | `{ name, steps: Array<{id, title, depends_on}> }` | `{ workflow_id }` | |
-| `get_workflow_state` | `{ step_id? }` | summary or full record | |
-| `ask_user` | `{ type: "clarification" \| "permission", question, options?, command?, risk? }` | `{ response }` | Merged HITL tool, §5.4 |
+| `apply_patch` | `{ path, patch, expectedSha? }` | see §4.1 failure contract | Atomic temp+rename |
+| `run_command` | `{ command: string, timeoutMs?, readinessPattern? }` | `{ stdout?, stderr?, exitCode?, logId, status? }` | Ad-hoc only, not build/test |
+| `detect_workspace` | `{ path?: string }` | project info + optional retarget | Session anchor; retarget policy ADR 0004 |
+| `create_workflow` | `{ name, steps: Array<{id, title, depends_on}> }` | `{ workflowId }` | Rejects cycles / duplicate ids |
+| `get_workflow_state` | `{ workflowId?, stepId?, includeFullLog? }` | summary by default | fullLog opt-in |
+| `ask_user` | `{ type, question?, options?, command?, risk?, response?, approvalToken? }` | `{ response? }` | Mutations need secret or dashboard, §5.4 / ADR 0009 |
+| `open_project` | `{ path: string }` | `{ success, message?, projectInfo? }` | Workspace retarget; Tier 2 outside initial tree |
 
 ### 5.2 Tier B — Dispatcher-Routed (~13 capabilities, zero schema cost)
 
@@ -256,10 +273,10 @@ These are not registered as MCP tools. They exist only as routing targets inside
 
 Replaces what would otherwise be two overlapping tools (`confirm_action`, `ask_user_question`):
 
-- `type: "permission"` — raised automatically when the Permission Gate intercepts a Tier 2 command. Carries `command`, `risk`, `reason`. Client surfaces this as an approval prompt.
-- `type: "clarification"` — raised by the model voluntarily when it has found a genuine requirements ambiguity blocking progress (e.g., two valid interpretations of a PRD line). Carries `question`, `options?`.
+- `type: "permission"` — engine/gate creates a `pending_confirmations` row and returns/throws `requires_confirmation`. MCP `ask_user` may create/poll; **approve/reject via MCP requires `approvalToken === CCATHOME_APPROVAL_TOKEN`**. Dashboard HTTP (launch token) may approve/reject. Approvals are **single-use** (ADR 0009).
+- `type: "clarification"` — persists a pending clarification and waits for dashboard/secret resolution (does not return `"No response received"` immediately).
 
-One tool, one schema, discriminated by `type` — there is no decision for the model to make about *which* HITL tool to use, only *which type* the current situation is.
+One tool, one schema, discriminated by `type`.
 
 ---
 
@@ -269,9 +286,9 @@ One tool, one schema, discriminated by `type` — there is no decision for the m
 
 | Tier | Behavior | Examples |
 |---|---|---|
-| 0 | Always allowed | `git status`, `npm i`, `pip install`, test runners, reads |
+| 0 | Always allowed | `git status`, `git diff`, test runners (`npm test`, vitest), reads |
 | 1 | Allowed within workspace scope | writes, `npm run <script>`, `git commit` |
-| 2 | Requires explicit confirmation via `ask_user(type: "permission")` | `git push`, any path outside workspace root, outbound network calls |
+| 2 | Requires explicit confirmation (dashboard or `approvalToken`) | `git push`, `npm install`/`ci`, bare `node`, outbound network, workspace retarget outside initial tree |
 | 3 | Always blocked, no override | `rm -rf /`, path traversal (`../../`), `curl \| bash`, `sudo` |
 
 ### 6.2 Enforcement Architecture
@@ -282,17 +299,19 @@ One tool, one schema, discriminated by `type` — there is no decision for the m
 
 ### 6.3 Server Authentication
 
-v1 binds to localhost only, over stdio (the default MCP transport), which inherently limits exposure to local processes with access to the same machine. If an HTTP/SSE transport is added in v2 for the dashboard or remote use, it must require a token set at server startup — this is a hard requirement for that future transport, recorded now so it isn't forgotten.
+v1 binds MCP to stdio and runs a **local HTTP/SSE dashboard on port 3141**. The dashboard **requires a startup-generated launch token**; the server prints `Dashboard: http://localhost:3141/?token=...` at boot. Unauthenticated requests receive 401. Optional `CCATHOME_APPROVAL_TOKEN` authorizes MCP-side confirmation mutations (ADR 0009). Any future remote HTTP transport must retain token auth as a hard requirement.
 
 ---
 
 ## 7. Data Model
 
+Schema as of migrations `0001`–`0005` (forward-only under `db/migrations/`):
+
 ```sql
 CREATE TABLE workflows (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    status TEXT CHECK(status IN ('pending','running','completed','failed')) DEFAULT 'pending',
+    status TEXT CHECK(status IN ('pending','running','completed','failed','requires_confirmation')) DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -302,9 +321,21 @@ CREATE TABLE workflow_steps (
     workflow_id TEXT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     depends_on TEXT,           -- JSON array of step IDs
-    status TEXT CHECK(status IN ('pending','running','completed','failed')) DEFAULT 'pending',
+    status TEXT CHECK(status IN ('pending','running','completed','failed','requires_confirmation')) DEFAULT 'pending',
     retry_count INTEGER DEFAULT 0,
-    full_log TEXT,             -- complete execution record; context manager only ever exposes a summary of this
+    full_log TEXT,
+    summary TEXT,              -- truncated model-facing log (migration 0004)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX idx_workflow_steps_workflow_id_id ON workflow_steps (workflow_id, id);
+
+CREATE TABLE pending_confirmations (
+    id TEXT PRIMARY KEY,
+    step_id TEXT REFERENCES workflow_steps(id) ON DELETE CASCADE,
+    command TEXT NOT NULL,
+    status TEXT CHECK(status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending',
+    type TEXT CHECK(type IN ('permission', 'clarification')) DEFAULT 'permission',
+    question TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -312,12 +343,12 @@ CREATE TABLE checkpoints (
     id TEXT PRIMARY KEY,
     workflow_step_id TEXT REFERENCES workflow_steps(id),
     git_sha TEXT,
-    backup_meta TEXT,          -- JSON: affected file paths + backup locations
+    backup_meta TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE VIRTUAL TABLE project_memory USING fts5(
-    key, value, category, embedding UNINDEXED   -- embedding column reserved for v2 (§4.6)
+    key, value, category, embedding UNINDEXED
 );
 
 CREATE TABLE command_log (
@@ -338,7 +369,7 @@ CREATE TABLE command_log (
 | Filesystem op latency | < 250ms p95 for files under 1MB | Benchmark harness, §10 |
 | Path containment | 0 breaches | Adversarial test suite (traversal strings, symlink escapes) run in CI, not asserted in prose |
 | Data locality | No workspace content leaves the host | Code review checklist item; no telemetry/network calls exist in v1 by construction — there is nothing to disable |
-| Tool schema overhead | ≤ 11 Tier A schemas loaded per session | Verified by counting `tools/list` response at CI time |
+| Tool schema overhead | ≤ 12 Tier A schemas loaded per session | CI / `index.test.ts` asserts `TIER_A_TOOLS.size === TIER_A_BUDGET` |
 
 ---
 
@@ -346,7 +377,7 @@ CREATE TABLE command_log (
 
 | Risk | Impact | Mitigation / Decision Needed |
 |---|---|---|
-| `run_script` sandbox escape | High — defeats the entire permission model | Decide `vm` vs `isolated-vm` before Phase 2 ships; security review required before `run_script` is enabled by default |
+| `run_script` sandbox escape | High — `vm` is not a hard boundary (ADR 0008) | Mitigations shipped (timeout, freeze, gated I/O); residual risk accepted for v1; revisit `isolated-vm` only if threat model requires it |
 | Static command classifier misses a dangerous pattern | Medium | Default-to-confirm for unrecognized commands (§6.2); maintain the ruleset as a versioned, reviewed file, not inline logic |
 | Auto-commit cadence pollutes git history on the user's actual branch | Medium | Mitigated by branch isolation (§4.4); needs an explicit squash/cleanup tool before merging back, tracked for Phase 3 |
 | Dispatcher round-trip tax degrades perceived responsiveness for frequently-needed Tier B capabilities | Low-Medium | Re-evaluate Tier A/B split after first real usage data (§10); promote any Tier B capability that turns out to be high-frequency |
@@ -360,7 +391,7 @@ Unlike v1, every metric below specifies what is actually measured and how.
 
 | Metric | Target | Benchmark Methodology |
 |---|---|---|
-| Autonomous step completion rate | Measured baseline first; no target asserted until Phase 3 produces real data | Fixed suite of 10 scaffolded project tasks (defined in Phase 3, §9 Step 3) run end-to-end; completion = all steps reach `completed` without manual intervention beyond Tier 2 confirmations |
+| Autonomous step completion rate | Measured baseline first; no target asserted until harness data exists | Fixed suite of 10 scaffolded project tasks in `docs/benchmarks/v1-tasks.md` run via `npm run benchmark:v1` / harness scripts; completion = all steps reach `completed` without manual intervention beyond Tier 2 confirmations |
 | Self-healing recovery | Measured rate of (auto-fix success + clean rollback) vs. (dirty state requiring manual cleanup) | Deliberate fault injection: introduce a syntax error mid-step in 5 of the 10 benchmark tasks; record outcome category |
 | Path containment | 0 breaches, verified not asserted | Adversarial unit test suite run in CI on every commit (traversal, symlink, null-byte injection) |
 | Tool-call round-trip overhead (dispatcher tax) | Measured, reported, not targeted in v1 | Compare total tool-call count and wall-clock time for an identical task run with Tier B capabilities vs. a hypothetical all-direct registration, on a sample of 5 tasks |
