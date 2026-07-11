@@ -11,6 +11,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - **Version skew:** `package.json` / MCP server still report `1.0.0` while this file’s latest release section is `[2.0.0]`. Package bump is deferred to remediation Phase R7 (`docs/plans/REMEDIATION_TO_90.md` Task R7.7.2).
 - Active engineering track: Phases R0–R7 in `docs/plans/REMEDIATION_TO_90.md` (ADRs 0004–0009 accepted in R0).
 
+### Changed
+- Moved `npm install` / `npm i` / `npm ci` from Tier 0 to Tier 2 (lifecycle script risk; remediation R2.1.3).
+- Removed `^node\\b` from Tier 1 auto-allow (remediation R2.1.2).
+
 ### Fixed
 - `detect_workspace` discovery test now uses a platform-absolute temp path (Linux CI).
 - `run_command` flushes/closes the log write stream on child `close` so `expand_log` sees stderr.

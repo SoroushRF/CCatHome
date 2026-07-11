@@ -16,9 +16,6 @@
         "^eslint",
         "^prettier",
         "^git rev-parse\\b",
-        "^npm i\\b",
-        "^npm install\\b",
-        "^npm ci\\b",
         "^read_file\\b"
       ]
     },
@@ -55,7 +52,10 @@
         "^git checkout\\s+--",
         "^git checkout\\s+\\.",
         "^git reset\\s+--hard",
-        "^git clean\\b"
+        "^git clean\\b",
+        "^npm i\\b",
+        "^npm install\\b",
+        "^npm ci\\b"
       ]
     },
     {

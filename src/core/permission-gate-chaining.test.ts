@@ -3,11 +3,11 @@ import { classifyCommand } from "./permission-gate.js";
 import { PermissionTier } from "./constants.js";
 
 describe("Permission Gate Security Hardening Suite (Findings #1, #2, #4)", () => {
-  it("should classify npm install as Tier 0", () => {
-    expect(classifyCommand("npm install")).toBe(PermissionTier.TIER_0);
-    expect(classifyCommand("npm i")).toBe(PermissionTier.TIER_0);
-    expect(classifyCommand("npm ci")).toBe(PermissionTier.TIER_0);
-    expect(classifyCommand("npm install --save-dev zod")).toBe(PermissionTier.TIER_0);
+  it("should classify npm install as Tier 2 (lifecycle scripts)", () => {
+    expect(classifyCommand("npm install")).toBe(PermissionTier.TIER_2);
+    expect(classifyCommand("npm i")).toBe(PermissionTier.TIER_2);
+    expect(classifyCommand("npm ci")).toBe(PermissionTier.TIER_2);
+    expect(classifyCommand("npm install --save-dev zod")).toBe(PermissionTier.TIER_2);
   });
 
   it("should classify dangerous git destructive operations as Tier 2", () => {
