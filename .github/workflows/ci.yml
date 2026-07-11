@@ -51,6 +51,7 @@ jobs:
     - name: Adversarial security suite
       run: npm run test:adversarial
 
+  # R7.5.4 — prettier format:check gate
   format-check:
     runs-on: ubuntu-latest
     steps:
