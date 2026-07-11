@@ -1,5 +1,12 @@
 # Implementation Plan v2.0 — `CCatHome`
 
+> **Active delivery track (2026-07-11+):**  
+> Phases 0–3 below are **historical**. An objective audit found material gaps between claimed completion and enforced behavior (security bypasses, unwired DAG/isolation/auto-commit, HITL/dashboard holes, doc↔code drift, dishonest benchmark claims).  
+> **Authoritative remaining work:** [`docs/plans/REMEDIATION_TO_90.md`](docs/plans/REMEDIATION_TO_90.md) (Phases R0–R7).  
+> Execute that plan with **one Task = one commit**. Do not treat this v2.0 checklist as “done.”
+
+---
+
 ## Guiding Rule for This Plan
 
 Every step below has a **deliverable** (a concrue artifact: code, test, or document), an **acceptance criterion** (a binary, verifiable check), and contributes to a phase-level **integration gate** — no phase is considered complete based on a feature list alone.
