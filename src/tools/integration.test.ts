@@ -1,3 +1,4 @@
+import { approveCommandForTests } from "../test/approve-command.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
@@ -69,6 +70,7 @@ describe("Phase 1 Integration Gate (End-to-End)", () => {
   });
 
   afterEach(async () => {
+    closeDb();
     if (fs.existsSync(TEST_DIR)) {
       try {
         fs.rmSync(TEST_DIR, { recursive: true, force: true });
@@ -105,8 +107,10 @@ describe("Phase 1 Integration Gate (End-to-End)", () => {
 
     // 3. Verify changes with a command (run_command)
     // Run an inline Node command to test calculator output
+    const runCmd = `node -e "import('./src/calculator.mjs').then(m => { console.log('RESULT=' + m.add(5, 7)); })"`;
+    approveCommandForTests(runCmd);
     const runRes = await invoke("run_command", {
-      command: `node -e "import('./src/calculator.mjs').then(m => { console.log('RESULT=' + m.add(5, 7)); })"`,
+      command: runCmd,
     });
     expect(runRes.success).toBe(true);
     expect(runRes.result.status).toBe("exited");
@@ -131,6 +135,7 @@ describe("Phase 1 Integration Gate (End-to-End)", () => {
 
 describe("Phase 2 Integration Gate (End-to-End)", () => {
   beforeEach(async () => {
+    closeDb();
     clearRegistry();
     config.workspaceRoot = TEST_DIR;
 
@@ -213,6 +218,7 @@ describe("Phase 2 Integration Gate (End-to-End)", () => {
       steps,
     });
     expect(wfRes.success).toBe(true);
+    expect(wfRes.result.success).toBe(true);
     const workflowId = wfRes.result.workflowId;
     expect(workflowId).toBeDefined();
 
@@ -241,10 +247,14 @@ describe("Phase 2 Integration Gate (End-to-End)", () => {
 
     // 5. Execute Step B using execute_step (auto-fix micro-loop)
     // Execution command just runs print, validation checks calculator content, recovery fixes it.
+    const execCmd = "node -e \"console.log('running checks')\"";
+    approveCommandForTests(execCmd, "stepB");
+    approveCommandForTests("node check.js", "stepB");
+    approveCommandForTests("node recover.js", "stepB");
     const execStepRes = await invoke("execute_step", {
       workflowId,
       stepId: "stepB",
-      executionCommand: "node -e \"console.log('running checks')\"",
+      executionCommand: execCmd,
       validationCommand: "node check.js",
       maxRetries: 2,
       recoveryCommand: "node recover.js",

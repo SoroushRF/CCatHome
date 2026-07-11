@@ -34,7 +34,6 @@
         "^npm run dev$",
         "^tsup",
         "^tsc",
-        "^node\\b",
         "^git init$",
         "^git config\\b",
         "^git checkout\\b",

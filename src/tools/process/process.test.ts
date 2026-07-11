@@ -9,6 +9,8 @@ import { runCommandDefinition, runCommandHandler } from "./run_command.js";
 import { killProcessDefinition, killProcessHandler } from "./kill_process.js";
 import { readProcessOutputDefinition, readProcessOutputHandler } from "./read_process_output.js";
 import { expandLogDefinition, expandLogHandler } from "./expand_log.js";
+import { approveCommandForTests } from "../../test/approve-command.js";
+import { closeDb, getDb } from "../../core/db.js";
 
 const TEST_DIR = path.resolve(config.workspaceRoot, "temp_proc_test");
 
@@ -34,10 +36,12 @@ describe("Process Capabilities Suite", () => {
     registerCapability(killProcessDefinition, killProcessHandler);
     registerCapability(readProcessOutputDefinition, readProcessOutputHandler);
     registerCapability(expandLogDefinition, expandLogHandler);
+    getDb(); // ensure DB for approvals
   });
 
   afterEach(async () => {
     killAllProcesses();
+    closeDb();
     // Allow OS time to release file handles on Windows
     await new Promise((resolve) => setTimeout(resolve, 150));
     if (fs.existsSync(TEST_DIR)) {
@@ -51,8 +55,10 @@ describe("Process Capabilities Suite", () => {
   });
 
   it("should run short-lived commands and expand their logs", async () => {
+    const command = `node -e "console.log('hello stdout'); console.error('hello stderr');"`;
+    approveCommandForTests(command);
     const res = await invoke("run_command", {
-      command: `node -e "console.log('hello stdout'); console.error('hello stderr');"`,
+      command,
     });
 
     expect(res.success).toBe(true);
@@ -75,6 +81,7 @@ describe("Process Capabilities Suite", () => {
   it("should run background processes, detect readiness, read output, and kill them", async () => {
     // Spawns a background process that logs a readiness signal, then prints heartbeats
     const command = `node -e "console.log('ready on localhost:3000'); setInterval(() => console.log('pulse'), 50);"`;
+    approveCommandForTests(command);
     const res = await invoke("run_command", {
       command,
       timeoutMs: 5000,

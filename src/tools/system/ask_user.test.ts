@@ -11,6 +11,7 @@ import { executeStepDefinition, executeStepHandler } from "../workflow/execute_s
 import { askUserDefinition, askUserHandler } from "./ask_user.js";
 import { checkpointDefinition, checkpointHandler } from "../checkpoint/checkpoint.js";
 import { restoreCheckpointDefinition, restoreCheckpointHandler } from "../checkpoint/restore_checkpoint.js";
+import { approveCommandForTests } from "../../test/approve-command.js";
 
 const TEST_DIR = path.resolve(process.cwd(), "temp_ask_user_test");
 
@@ -117,11 +118,13 @@ describe("Human-in-the-Loop Confirmation Suite (Step 3.2)", () => {
     expect(stepRowApproved.status).toBe("running");
 
     // 6. Resume execute_step
+    const validationCommand = "node -e \"process.exit(0)\"";
+    approveCommandForTests(validationCommand, "stepA");
     const resumeRes = await invoke("execute_step", {
       workflowId,
       stepId: "stepA",
       executionCommand: "git push", // should execute now since it is approved
-      validationCommand: "node -e \"process.exit(0)\"",
+      validationCommand,
       maxRetries: 1
     });
 

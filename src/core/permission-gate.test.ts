@@ -41,6 +41,11 @@ describe("Permission Gate Command Classifier", () => {
     expect(classifyCommand("unknown-command-xyz")).toBe(PermissionTier.TIER_2);
   });
 
+  it("should classify bare node as Tier 2 (not auto-allowed)", () => {
+    expect(classifyCommand("node -e \"console.log(1)\"")).toBe(PermissionTier.TIER_2);
+    expect(classifyCommand("node script.js")).toBe(PermissionTier.TIER_2);
+  });
+
   it("should gate commands based on classification tiers", () => {
     // Tiers 0 and 1 are allowed automatically
     expect(classifyAndGate("git status").allowed).toBe(true);

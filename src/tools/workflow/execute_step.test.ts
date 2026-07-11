@@ -10,6 +10,7 @@ import { saveWorkflow } from "../../core/workflow-engine.js";
 import { executeStepDefinition, executeStepHandler } from "./execute_step.js";
 import { checkpointDefinition, checkpointHandler } from "../checkpoint/checkpoint.js";
 import { restoreCheckpointDefinition, restoreCheckpointHandler } from "../checkpoint/restore_checkpoint.js";
+import { approveCommandForTests } from "../../test/approve-command.js";
 
 const TEST_DIR = path.resolve(config.workspaceRoot, "temp_execute_step_test");
 
@@ -65,6 +66,8 @@ describe("Execute Step Compound Loop Suite", () => {
     fs.writeFileSync(path.join(TEST_DIR, "check.js"), "process.exit(0);", "utf-8");
 
     // 3. Execute step
+    approveCommandForTests("node exec.js", "step1");
+    approveCommandForTests("node check.js", "step1");
     const res = await invoke("execute_step", {
       workflowId: "wf1",
       stepId: "step1",
@@ -112,6 +115,9 @@ describe("Execute Step Compound Loop Suite", () => {
     `, "utf-8");
 
     // Execute step
+    approveCommandForTests("node exec.js", "step2");
+    approveCommandForTests("node check.js", "step2");
+    approveCommandForTests("node recover.js", "step2");
     const res = await invoke("execute_step", {
       workflowId: "wf2",
       stepId: "step2",
@@ -145,6 +151,8 @@ describe("Execute Step Compound Loop Suite", () => {
     fs.writeFileSync(path.join(TEST_DIR, "exec.js"), "console.log('deploying');", "utf-8");
     fs.writeFileSync(path.join(TEST_DIR, "check.js"), "process.exit(1);", "utf-8"); // always fails
 
+    approveCommandForTests("node exec.js", "step3");
+    approveCommandForTests("node check.js", "step3");
     const res = await invoke("execute_step", {
       workflowId: "wf3",
       stepId: "step3",
