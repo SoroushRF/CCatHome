@@ -93,8 +93,18 @@ export async function restoreCheckpointHandler(args: {
         }
       } else {
         const backupFullPath = path.join(config.workspaceRoot, item.backupPath);
-        if (fs.existsSync(backupFullPath)) {
-          fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+        if (!fs.existsSync(backupFullPath)) {
+          return {
+            success: false,
+            error: "backup_missing",
+            reason: `Missing backup for '${item.originalPath}' at '${item.backupPath}'`,
+          };
+        }
+        const stat = fs.statSync(backupFullPath);
+        fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+        if (stat.isDirectory()) {
+          fs.cpSync(backupFullPath, targetPath, { recursive: true });
+        } else {
           fs.copyFileSync(backupFullPath, targetPath);
         }
       }

@@ -104,4 +104,35 @@ describe("Checkpoint & Rollback Subsystem Suite", () => {
     expect(gitStatusAfter.stdout).toContain("?? untracked.txt");
     expect(gitStatusAfter.stdout).toContain("D file2.txt");
   });
+
+  it("should checkpoint untracked directories and fail restore when backup missing", async () => {
+    const dir = path.join(TEST_DIR, "untracked_dir");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "nested.txt"), "nested\n", "utf-8");
+
+    const cpRes = await invoke("checkpoint", {});
+    expect(cpRes.result.success).toBe(true);
+    const checkpointId = cpRes.result.checkpointId;
+
+    // Corrupt backup metadata path to force missing backup
+    const dbPath = path.join(TEST_DIR, ".ccathome", "ccathome.db");
+    expect(fs.existsSync(dbPath)).toBe(true);
+    const { getDb } = await import("../../core/db.js");
+    const db = getDb();
+    const row = db
+      .prepare("SELECT backup_meta FROM checkpoints WHERE id = ?")
+      .get(checkpointId) as { backup_meta: string };
+    const meta = JSON.parse(row.backup_meta);
+    if (meta[0]) {
+      meta[0].backupPath = ".ccathome/backups/checkpoints/missing/nope.txt";
+      db.prepare("UPDATE checkpoints SET backup_meta = ? WHERE id = ?").run(
+        JSON.stringify(meta),
+        checkpointId
+      );
+    }
+
+    const restoreRes = await invoke("restore_checkpoint", { checkpointId });
+    expect(restoreRes.result.success).toBe(false);
+    expect(restoreRes.result.error).toBe("backup_missing");
+  });
 });
