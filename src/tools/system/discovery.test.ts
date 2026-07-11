@@ -7,6 +7,9 @@ import { listCapabilitiesDefinition, listCapabilitiesHandler } from "./list_capa
 import { invokeDefinition, invokeHandler } from "./invoke.js";
 import { detectWorkspaceDefinition, detectWorkspaceHandler } from "./detect_workspace.js";
 import { config } from "../../core/config.js";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 
 describe("Dispatcher Discovery & Routing Suite (Step 3.1)", () => {
   beforeEach(() => {
@@ -101,10 +104,14 @@ describe("Dispatcher Discovery & Routing Suite (Step 3.1)", () => {
     registerCapability(detectWorkspaceDefinition, detectWorkspaceHandler);
     const origRoot = config.workspaceRoot;
 
-    const res = await invoke("detect_workspace", { path: "C:\\Users\\sorou\\OneDrive\\Desktop" });
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ccathome-detect-"));
+    const absoluteTemp = fs.realpathSync(tempRoot);
+
+    const res = await invoke("detect_workspace", { path: absoluteTemp });
     expect(res.success).toBe(true);
-    expect(config.workspaceRoot).toBe("C:\\Users\\sorou\\OneDrive\\Desktop");
+    expect(config.workspaceRoot).toBe(path.resolve(absoluteTemp));
 
     config.workspaceRoot = origRoot;
+    fs.rmSync(tempRoot, { recursive: true, force: true });
   });
 });
