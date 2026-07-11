@@ -41,15 +41,9 @@ export async function runScriptHandler(args: { code: string; timeoutMs?: number 
   const timeout = Math.min(args.timeoutMs ?? DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS);
 
   const gated = {
-    runCommand: async (command: string) => {
-      const gateResult = classifyAndGate(command);
-      if (!gateResult.allowed) {
-        throw new Error(
-          `Permission denied: Command '${command}' was rejected by the Permission Gate (Tier ${gateResult.tier})`,
-        );
-      }
-      return runCommandGated(command);
-    },
+    // Single gate pass via runCommandGated — do not pre-call classifyAndGate
+    // (approvals are single-use and would be consumed twice).
+    runCommand: async (command: string) => runCommandGated(command),
     readFile: async (relativePath: string) => {
       const gateResult = classifyAndGate(`read_file ${relativePath}`);
       if (!gateResult.allowed) {
