@@ -4,6 +4,7 @@ import * as path from "path";
 import { PermissionTier, CapabilityName } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
 import { config } from "../../core/config.js";
+import { prepareWorkspaceRetarget } from "../../core/workspace-retarget.js";
 
 export const detectWorkspaceDefinition: CapabilityDefinition = {
   name: CapabilityName.DETECT_WORKSPACE,
@@ -23,9 +24,24 @@ export async function detectWorkspaceHandler(args: {
   packageManager: string;
   entryPoints: string[];
   dependencies: Record<string, string>;
+  error?: string;
+  reason?: string;
 }> {
   if (args.path) {
-    config.workspaceRoot = path.resolve(args.path);
+    const prepared = prepareWorkspaceRetarget(args.path);
+    if (!prepared.ok) {
+      return {
+        success: false,
+        language: "unknown",
+        runtime: "unknown",
+        packageManager: "unknown",
+        entryPoints: [],
+        dependencies: {},
+        error: prepared.error,
+        reason: prepared.reason,
+      };
+    }
+    config.workspaceRoot = prepared.absolutePath;
   }
   const root = config.workspaceRoot;
   let language = "unknown";

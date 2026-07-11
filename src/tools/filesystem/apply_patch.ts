@@ -154,7 +154,10 @@ export async function applyPatchHandler(args: {
   }
 
   // 6. Atomic rename temp file to target
+  // Re-resolve immediately before rename to reduce symlink TOCTOU window (residual race remains).
   try {
+    targetPath = resolveSafePath(config.workspaceRoot, args.path);
+    assertNotSensitiveWorkspacePath(targetPath);
     fs.mkdirSync(path.dirname(targetPath), { recursive: true });
     fs.renameSync(tempFilePath, targetPath);
   } catch (err: any) {

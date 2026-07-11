@@ -1,9 +1,8 @@
 import { z } from "zod";
-import * as path from "path";
-import * as fs from "fs";
 import { PermissionTier, CapabilityName } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
 import { config } from "../../core/config.js";
+import { prepareWorkspaceRetarget } from "../../core/workspace-retarget.js";
 import { detectWorkspaceHandler } from "./detect_workspace.js";
 
 export const openProjectDefinition: CapabilityDefinition = {
@@ -24,33 +23,22 @@ export async function openProjectHandler(args: {
   error?: string;
   reason?: string;
 }> {
-  const absolutePath = path.resolve(args.path);
-  if (!fs.existsSync(absolutePath)) {
+  const prepared = prepareWorkspaceRetarget(args.path);
+  if (!prepared.ok) {
     return {
       success: false,
-      error: "directory_not_found",
-      reason: `The directory '${args.path}' does not exist`,
+      error: prepared.error,
+      reason: prepared.reason,
     };
   }
 
-  const stat = fs.statSync(absolutePath);
-  if (!stat.isDirectory()) {
-    return {
-      success: false,
-      error: "not_a_directory",
-      reason: `'${args.path}' is a file, not a directory`,
-    };
-  }
+  config.workspaceRoot = prepared.absolutePath;
 
-  // Switch workspaceRoot dynamically
-  config.workspaceRoot = absolutePath;
-
-  // Run detect_workspace logic to return info about the new project
-  const workspaceInfo = await detectWorkspaceHandler({ path: absolutePath });
+  const workspaceInfo = await detectWorkspaceHandler({});
 
   return {
     success: true,
-    message: `Successfully opened project workspace at: ${absolutePath}`,
+    message: `Successfully opened project workspace at: ${prepared.absolutePath}`,
     projectInfo: workspaceInfo,
   };
 }

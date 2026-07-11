@@ -8,7 +8,6 @@ import { invokeDefinition, invokeHandler } from "./invoke.js";
 import { detectWorkspaceDefinition, detectWorkspaceHandler } from "./detect_workspace.js";
 import { config } from "../../core/config.js";
 import * as fs from "fs";
-import * as os from "os";
 import * as path from "path";
 
 describe("Dispatcher Discovery & Routing Suite (Step 3.1)", () => {
@@ -103,15 +102,19 @@ describe("Dispatcher Discovery & Routing Suite (Step 3.1)", () => {
   it("should allow dynamic workspace path configuration via detect_workspace", async () => {
     registerCapability(detectWorkspaceDefinition, detectWorkspaceHandler);
     const origRoot = config.workspaceRoot;
+    const origInitial = config.initialWorkspaceRoot;
+    config.initialWorkspaceRoot = origRoot;
 
-    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ccathome-detect-"));
+    const tempRoot = fs.mkdtempSync(path.join(origRoot, "ccathome-detect-"));
     const absoluteTemp = fs.realpathSync(tempRoot);
 
     const res = await invoke("detect_workspace", { path: absoluteTemp });
     expect(res.success).toBe(true);
+    expect(res.result.success).toBe(true);
     expect(config.workspaceRoot).toBe(path.resolve(absoluteTemp));
 
     config.workspaceRoot = origRoot;
+    config.initialWorkspaceRoot = origInitial;
     fs.rmSync(tempRoot, { recursive: true, force: true });
   });
 });
