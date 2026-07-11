@@ -10,9 +10,9 @@ export function resolveSafePath(workspaceRoot: string, userPath: string): string
   const resolvedRoot = path.resolve(workspaceRoot);
   const resolvedTarget = path.resolve(resolvedRoot, userPath);
 
-  // Textual check
+  // Textual check — only treat ".." as a segment, not names like "..hidden"
   const textRelative = path.relative(resolvedRoot, resolvedTarget);
-  if (textRelative.startsWith("..") || path.isAbsolute(textRelative)) {
+  if (isPathEscape(textRelative)) {
     throw new Error(`path_traversal_detected: Path '${userPath}' escapes the workspace root`);
   }
 
@@ -31,7 +31,7 @@ export function resolveSafePath(workspaceRoot: string, userPath: string): string
         const realCurrent = fs.realpathSync(current);
         // Ensure the existing ancestor is inside the real root
         const relativeAncestor = path.relative(realRoot, realCurrent);
-        if (relativeAncestor.startsWith("..") || path.isAbsolute(relativeAncestor)) {
+        if (isPathEscape(relativeAncestor)) {
           throw new Error(`path_traversal_detected: Path '${userPath}' escapes the workspace root via ancestor`);
         }
         break;
@@ -42,9 +42,16 @@ export function resolveSafePath(workspaceRoot: string, userPath: string): string
 
   // 4. Verify final real path containment
   const realRelative = path.relative(realRoot, realTarget);
-  if (realRelative.startsWith("..") || path.isAbsolute(realRelative)) {
+  if (isPathEscape(realRelative)) {
     throw new Error(`path_traversal_detected: Path '${userPath}' escapes the workspace root via symlink`);
   }
 
   return resolvedTarget;
+}
+
+function isPathEscape(relative: string): boolean {
+  if (path.isAbsolute(relative)) return true;
+  if (relative === "..") return true;
+  if (relative.startsWith(`..${path.sep}`)) return true;
+  return false;
 }
