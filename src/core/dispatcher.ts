@@ -2,6 +2,9 @@ import { z } from "zod";
 import { getCapability, getAllCapabilities } from "./router.js";
 import { PermissionTier, CapabilityName } from "./constants.js";
 
+/** Max Tier A MCP tools (ADR 0004). CI asserts TIER_A_TOOLS.size === this. */
+export const TIER_A_BUDGET = 12;
+
 // Helper to determine if a capability is a Tier A tool
 export const TIER_A_TOOLS = new Set<string>([
   CapabilityName.INVOKE,
