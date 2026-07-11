@@ -202,6 +202,50 @@ describe("Execute Step Compound Loop Suite", () => {
     expect(stepRow.status).toBe("pending");
   });
 
+  it("should not auto-commit when the step fails validation", async () => {
+    saveWorkflow("wf-fail-nc", "No Commit Fail", [{ id: "stepFail", title: "Fail" }]);
+    fs.writeFileSync(
+      path.join(TEST_DIR, "exec.js"),
+      `import fs from 'fs'; fs.writeFileSync('fail-out.txt', 'x', 'utf-8');`,
+      "utf-8"
+    );
+    fs.writeFileSync(path.join(TEST_DIR, "check.js"), "process.exit(1);", "utf-8");
+
+    approveCommandForTests("node exec.js", "stepFail");
+    approveCommandForTests("node check.js", "stepFail");
+    const before = await runCommandGated("git rev-parse HEAD");
+    const res = await invoke("execute_step", {
+      workflowId: "wf-fail-nc",
+      stepId: "stepFail",
+      executionCommand: "node exec.js",
+      validationCommand: "node check.js",
+      maxRetries: 0,
+    });
+
+    expect(res.result.success).toBe(false);
+    expect(res.result.status).toBe("failed");
+    const after = await runCommandGated("git rev-parse HEAD");
+    expect(after.stdout.trim()).toBe(before.stdout.trim());
+    const log = await runCommandGated("git log -n 1 --pretty=format:%s");
+    expect(log.stdout.trim()).not.toContain("[ccathome-auto]");
+  });
+
+  it("should not auto-commit when paused for confirmation", async () => {
+    saveWorkflow("wf-pause-nc", "No Commit Pause", [{ id: "stepPause", title: "Push" }]);
+    const before = await runCommandGated("git rev-parse HEAD");
+    const res = await invoke("execute_step", {
+      workflowId: "wf-pause-nc",
+      stepId: "stepPause",
+      executionCommand: "git push",
+      validationCommand: "node -e \"process.exit(0)\"",
+      maxRetries: 0,
+    });
+
+    expect(res.result.status).toBe("requires_confirmation");
+    const after = await runCommandGated("git rev-parse HEAD");
+    expect(after.stdout.trim()).toBe(before.stdout.trim());
+  });
+
   it("should fail step and record log when max retries exceeded", async () => {
     const steps = [{ id: "step3", title: "Deploy application" }];
     saveWorkflow("wf3", "Deploy Workflow", steps);
