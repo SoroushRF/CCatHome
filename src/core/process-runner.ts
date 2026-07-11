@@ -25,6 +25,9 @@ export async function runCommandUngated(command: string): Promise<GatedRunResult
 
     const stdoutChunks: string[] = [];
     const stderrChunks: string[] = [];
+    const killTimer = setTimeout(() => {
+      child.kill("SIGKILL");
+    }, 30_000);
 
     child.stdout.on("data", (data) => {
       stdoutChunks.push(data.toString());
@@ -34,6 +37,7 @@ export async function runCommandUngated(command: string): Promise<GatedRunResult
     });
 
     child.on("close", (code) => {
+      clearTimeout(killTimer);
       resolve({
         stdout: stdoutChunks.join("").trim(),
         stderr: stderrChunks.join("").trim(),
@@ -42,6 +46,7 @@ export async function runCommandUngated(command: string): Promise<GatedRunResult
     });
 
     child.on("error", (err) => {
+      clearTimeout(killTimer);
       resolve({
         stdout: stdoutChunks.join("").trim(),
         stderr: (stderrChunks.join("") + "\n" + err.message).trim(),
@@ -98,6 +103,9 @@ export async function runArgvGated(
 
     const stdoutChunks: string[] = [];
     const stderrChunks: string[] = [];
+    const killTimer = setTimeout(() => {
+      child.kill("SIGKILL");
+    }, 30_000);
 
     child.stdout.on("data", (data) => {
       stdoutChunks.push(data.toString());
@@ -107,6 +115,7 @@ export async function runArgvGated(
     });
 
     child.on("close", (code) => {
+      clearTimeout(killTimer);
       resolve({
         stdout: stdoutChunks.join("").trim(),
         stderr: stderrChunks.join("").trim(),
@@ -115,6 +124,7 @@ export async function runArgvGated(
     });
 
     child.on("error", (err) => {
+      clearTimeout(killTimer);
       resolve({
         stdout: stdoutChunks.join("").trim(),
         stderr: (stderrChunks.join("") + "\n" + err.message).trim(),

@@ -1,7 +1,5 @@
 import { z } from "zod";
 import * as crypto from "crypto";
-import * as fs from "fs";
-import * as path from "path";
 import {
   PermissionTier,
   CapabilityName,
@@ -20,6 +18,8 @@ import {
   getRunnableSteps,
 } from "../../core/workflow-engine.js";
 import { ensureBranchIsolation, runGit } from "../../core/git-utils.js";
+import { resolveSafePath } from "../../core/path-utils.js";
+import { safeWriteFile } from "../../core/safe-write.js";
 
 const SUMMARY_MAX_CHARS = 2000;
 
@@ -32,9 +32,11 @@ function buildSummary(fullLog: string): string {
 
 function persistAttemptLog(fullLog: string): string {
   const logId = crypto.randomBytes(8).toString("hex");
-  const logsDir = path.join(config.workspaceRoot, ".ccathome", "logs");
-  fs.mkdirSync(logsDir, { recursive: true });
-  fs.writeFileSync(path.join(logsDir, `cmd_${logId}.log`), fullLog, "utf-8");
+  const abs = resolveSafePath(
+    config.workspaceRoot,
+    `.ccathome/logs/cmd_${logId}.log`
+  );
+  safeWriteFile(abs, fullLog);
   return logId;
 }
 
