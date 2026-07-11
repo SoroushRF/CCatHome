@@ -12,11 +12,6 @@ import { applyPatchDefinition, applyPatchHandler } from "./filesystem/apply_patc
 import { runCommandDefinition, runCommandHandler } from "./process/run_command.js";
 import { gitCommitDefinition, gitCommitHandler } from "./git/git_commit.js";
 import { gitDiffDefinition, gitDiffHandler } from "./git/git_diff.js";
-import { checkpointDefinition, checkpointHandler } from "./checkpoint/checkpoint.js";
-import {
-  restoreCheckpointDefinition,
-  restoreCheckpointHandler,
-} from "./checkpoint/restore_checkpoint.js";
 import { createWorkflowDefinition, createWorkflowHandler } from "./workflow/create_workflow.js";
 import {
   getWorkflowStateDefinition,
@@ -186,8 +181,6 @@ describe("Phase 2 Integration Gate (End-to-End)", () => {
     registerCapability(runCommandDefinition, runCommandHandler);
     registerCapability(gitCommitDefinition, gitCommitHandler);
     registerCapability(gitDiffDefinition, gitDiffHandler);
-    registerCapability(checkpointDefinition, checkpointHandler);
-    registerCapability(restoreCheckpointDefinition, restoreCheckpointHandler);
     registerCapability(createWorkflowDefinition, createWorkflowHandler);
     registerCapability(getWorkflowStateDefinition, getWorkflowStateHandler);
     registerCapability(executeStepDefinition, executeStepHandler);

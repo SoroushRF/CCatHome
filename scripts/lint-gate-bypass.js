@@ -35,7 +35,7 @@ const SAFETY_MARKERS = [
   'prepareWorkspaceRetarget',
 ];
 
-/** Only these tool files may call runCommandUngated (temporary until ADR 0010). */
+/** Only these tool files may call runCommandUngated / runArgvUngated (ADR 0010). */
 const UNGATED_ALLOWLIST = new Set([
   path.resolve('src/tools/checkpoint/checkpoint.ts'),
   path.resolve('src/tools/checkpoint/restore_checkpoint.ts'),
@@ -90,9 +90,12 @@ function scanDir(dir) {
         }
       }
 
-      if (content.includes('runCommandUngated') && !UNGATED_ALLOWLIST.has(fullPath)) {
+      if (
+        (content.includes('runCommandUngated') || content.includes('runArgvUngated')) &&
+        !UNGATED_ALLOWLIST.has(fullPath)
+      ) {
         console.error(
-          `Lint Error: runCommandUngated call site not allowlisted in '${fullPath}'. Only checkpoint/restore may use it temporarily.`
+          `Lint Error: ungated runner call site not allowlisted in '${fullPath}'. Only checkpoint/restore may use runCommandUngated/runArgvUngated (ADR 0010).`
         );
         hasErrors = true;
       }

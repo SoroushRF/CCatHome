@@ -6,13 +6,9 @@ import { getDb, closeDb } from "../../core/db.js";
 import { registerCapability, clearRegistry } from "../../core/router.js";
 import { invoke } from "../../core/dispatcher.js";
 import { runCommandGated } from "../../core/process-runner.js";
+import { initGitRepoForTests } from "../../test/init-git-repo.js";
 import { saveWorkflow } from "../../core/workflow-engine.js";
 import { executeStepDefinition, executeStepHandler } from "./execute_step.js";
-import { checkpointDefinition, checkpointHandler } from "../checkpoint/checkpoint.js";
-import {
-  restoreCheckpointDefinition,
-  restoreCheckpointHandler,
-} from "../checkpoint/restore_checkpoint.js";
 import { approveCommandForTests } from "../../test/approve-command.js";
 
 const TEST_DIR = path.resolve(config.workspaceRoot, "temp_execute_step_test");
@@ -43,8 +39,6 @@ describe("Execute Step Compound Loop Suite", () => {
 
     // Register capabilities
     registerCapability(executeStepDefinition, executeStepHandler);
-    registerCapability(checkpointDefinition, checkpointHandler);
-    registerCapability(restoreCheckpointDefinition, restoreCheckpointHandler);
   });
 
   afterEach(() => {

@@ -6,14 +6,10 @@ import { getDb, closeDb } from "../../core/db.js";
 import { registerCapability, clearRegistry } from "../../core/router.js";
 import { invoke } from "../../core/dispatcher.js";
 import { runCommandGated } from "../../core/process-runner.js";
+import { initGitRepoForTests } from "../../test/init-git-repo.js";
 import { createWorkflowDefinition, createWorkflowHandler } from "../workflow/create_workflow.js";
 import { executeStepDefinition, executeStepHandler } from "../workflow/execute_step.js";
 import { askUserDefinition, askUserHandler } from "./ask_user.js";
-import { checkpointDefinition, checkpointHandler } from "../checkpoint/checkpoint.js";
-import {
-  restoreCheckpointDefinition,
-  restoreCheckpointHandler,
-} from "../checkpoint/restore_checkpoint.js";
 import { approveCommandForTests } from "../../test/approve-command.js";
 
 const TEST_DIR = path.resolve(process.cwd(), "temp_ask_user_test");
@@ -50,8 +46,6 @@ describe("Human-in-the-Loop Confirmation Suite (Step 3.2)", () => {
     registerCapability(createWorkflowDefinition, createWorkflowHandler);
     registerCapability(executeStepDefinition, executeStepHandler);
     registerCapability(askUserDefinition, askUserHandler);
-    registerCapability(checkpointDefinition, checkpointHandler);
-    registerCapability(restoreCheckpointDefinition, restoreCheckpointHandler);
   });
 
   afterEach(() => {

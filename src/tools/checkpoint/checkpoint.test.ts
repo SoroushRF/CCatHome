@@ -3,11 +3,11 @@ import * as fs from "fs";
 import * as path from "path";
 import { config } from "../../core/config.js";
 import { closeDb } from "../../core/db.js";
-import { registerCapability, clearRegistry } from "../../core/router.js";
-import { invoke } from "../../core/dispatcher.js";
+import { clearRegistry } from "../../core/router.js";
 import { runCommandGated } from "../../core/process-runner.js";
-import { checkpointDefinition, checkpointHandler } from "./checkpoint.js";
-import { restoreCheckpointDefinition, restoreCheckpointHandler } from "./restore_checkpoint.js";
+import { initGitRepoForTests } from "../../test/init-git-repo.js";
+import { checkpointHandler } from "./checkpoint.js";
+import { restoreCheckpointHandler } from "./restore_checkpoint.js";
 
 const TEST_DIR = path.resolve(config.workspaceRoot, "temp_checkpoint_test");
 
@@ -40,9 +40,7 @@ describe("Checkpoint & Rollback Subsystem Suite", () => {
     await runCommandGated("git add file1.txt file2.txt");
     await runCommandGated('git commit -m "Initial commit"');
 
-    // Register checkpoint capabilities
-    registerCapability(checkpointDefinition, checkpointHandler);
-    registerCapability(restoreCheckpointDefinition, restoreCheckpointHandler);
+    // Handlers are engine-internal (ADR 0010) — call directly, do not register.
   });
 
   afterEach(async () => {
@@ -70,9 +68,9 @@ describe("Checkpoint & Rollback Subsystem Suite", () => {
     expect(gitStatusBefore.stdout).toContain("D file2.txt");
 
     // 2. Take Checkpoint
-    const cpRes = await invoke("checkpoint", {});
+    const cpRes = await checkpointHandler({});
     expect(cpRes.success).toBe(true);
-    const checkpointId = cpRes.result.checkpointId;
+    const checkpointId = cpRes.checkpointId;
     expect(checkpointId).toBeDefined();
 
     // 3. Make additional post-checkpoint changes (corruptions)
@@ -81,9 +79,8 @@ describe("Checkpoint & Rollback Subsystem Suite", () => {
     fs.writeFileSync(path.join(TEST_DIR, "newfile.txt"), "extra file\n", "utf-8");
 
     // 4. Restore Checkpoint
-    const restoreRes = await invoke("restore_checkpoint", { checkpointId });
+    const restoreRes = await restoreCheckpointHandler({ checkpointId });
     expect(restoreRes.success).toBe(true);
-    expect(restoreRes.result.success).toBe(true);
 
     // 5. Assertions: check byte-for-byte pre-checkpoint state has been restored
     const content1 = fs.readFileSync(path.join(TEST_DIR, "file1.txt"), "utf-8");
@@ -110,9 +107,9 @@ describe("Checkpoint & Rollback Subsystem Suite", () => {
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, "nested.txt"), "nested\n", "utf-8");
 
-    const cpRes = await invoke("checkpoint", {});
-    expect(cpRes.result.success).toBe(true);
-    const checkpointId = cpRes.result.checkpointId;
+    const cpRes = await checkpointHandler({});
+    expect(cpRes.success).toBe(true);
+    const checkpointId = cpRes.checkpointId;
 
     // Corrupt backup metadata path to force missing backup
     const dbPath = path.join(TEST_DIR, ".ccathome", "ccathome.db");
@@ -131,28 +128,28 @@ describe("Checkpoint & Rollback Subsystem Suite", () => {
       );
     }
 
-    const restoreRes = await invoke("restore_checkpoint", { checkpointId });
-    expect(restoreRes.result.success).toBe(false);
-    expect(restoreRes.result.error).toBe("backup_missing");
+    const restoreRes = await restoreCheckpointHandler({ checkpointId });
+    expect(restoreRes.success).toBe(false);
+    expect(restoreRes.error).toBe("backup_missing");
   });
 
   describe("restore_checkpoint failure contracts (R7.2.5)", () => {
     it("returns checkpoint_not_found for unknown ids", async () => {
-      const res = await invoke("restore_checkpoint", {
+      const res = await restoreCheckpointHandler({
         checkpointId: "00000000-0000-0000-0000-000000000000",
       });
-      expect(res.result.success).toBe(false);
-      expect(res.result.error).toBe("checkpoint_not_found");
+      expect(res.success).toBe(false);
+      expect(res.error).toBe("checkpoint_not_found");
     });
 
     it("returns git_reset_failed when HEAD is not a valid git repo state", async () => {
-      const cpRes = await invoke("checkpoint", {});
-      const checkpointId = cpRes.result.checkpointId;
+      const cpRes = await checkpointHandler({});
+      const checkpointId = cpRes.checkpointId!;
       // Destroy .git so reset cannot succeed
       fs.rmSync(path.join(TEST_DIR, ".git"), { recursive: true, force: true });
-      const restoreRes = await invoke("restore_checkpoint", { checkpointId });
-      expect(restoreRes.result.success).toBe(false);
-      expect(["git_reset_failed", "restore_failed"]).toContain(restoreRes.result.error);
+      const restoreRes = await restoreCheckpointHandler({ checkpointId });
+      expect(restoreRes.success).toBe(false);
+      expect(["git_reset_failed", "restore_failed"]).toContain(restoreRes.error);
     });
   });
 });

@@ -6,13 +6,9 @@ import { closeDb, getDb } from "../../core/db.js";
 import { registerCapability, clearRegistry } from "../../core/router.js";
 import { invoke } from "../../core/dispatcher.js";
 import { runCommandGated } from "../../core/process-runner.js";
+import { initGitRepoForTests } from "../../test/init-git-repo.js";
 import { createWorkflowDefinition, createWorkflowHandler } from "../workflow/create_workflow.js";
 import { executeStepDefinition, executeStepHandler } from "../workflow/execute_step.js";
-import { checkpointDefinition, checkpointHandler } from "../checkpoint/checkpoint.js";
-import {
-  restoreCheckpointDefinition,
-  restoreCheckpointHandler,
-} from "../checkpoint/restore_checkpoint.js";
 import { startDashboardServer, stopDashboardServer } from "../../core/dashboard-server.js";
 import { approveCommandForTests } from "../../test/approve-command.js";
 import { ConfirmationStatus } from "../../core/constants.js";
@@ -39,8 +35,6 @@ describe("HITL dashboard approve → resume execute_step", () => {
 
     registerCapability(createWorkflowDefinition, createWorkflowHandler);
     registerCapability(executeStepDefinition, executeStepHandler);
-    registerCapability(checkpointDefinition, checkpointHandler);
-    registerCapability(restoreCheckpointDefinition, restoreCheckpointHandler);
   });
 
   afterEach(() => {

@@ -34,12 +34,8 @@ import { gitCheckoutDefinition, gitCheckoutHandler } from "../tools/git/git_chec
 import { rememberDefinition, rememberHandler } from "../tools/memory/remember.js";
 import { recallDefinition, recallHandler } from "../tools/memory/recall.js";
 
-// Checkpoint
-import { checkpointDefinition, checkpointHandler } from "../tools/checkpoint/checkpoint.js";
-import {
-  restoreCheckpointDefinition,
-  restoreCheckpointHandler,
-} from "../tools/checkpoint/restore_checkpoint.js";
+// Checkpoint / restore are engine-internal (ADR 0010) — execute_step imports
+// handlers directly; they must not be agent-callable via invoke.
 
 // Workflow
 import {
@@ -94,10 +90,6 @@ export function registerAllCapabilities(): void {
   // Memory
   registerCapability(rememberDefinition, rememberHandler);
   registerCapability(recallDefinition, recallHandler);
-
-  // Checkpoint
-  registerCapability(checkpointDefinition, checkpointHandler);
-  registerCapability(restoreCheckpointDefinition, restoreCheckpointHandler);
 
   // Workflow
   registerCapability(createWorkflowDefinition, createWorkflowHandler);

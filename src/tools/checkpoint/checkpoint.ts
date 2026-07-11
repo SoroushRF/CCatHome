@@ -4,21 +4,25 @@ import * as crypto from "crypto";
 import { z } from "zod";
 import { PermissionTier, CapabilityName } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
-import { runCommandUngated } from "../../core/process-runner.js";
+import { runArgvUngated } from "../../core/process-runner.js";
 import { getDb } from "../../core/db.js";
 import { config } from "../../core/config.js";
 import { resolveSafePath } from "../../core/path-utils.js";
 
+/**
+ * Engine-internal checkpoint. Not registered for agent invoke (ADR 0010).
+ */
 export const checkpointDefinition: CapabilityDefinition = {
   name: CapabilityName.CHECKPOINT,
-  description: "Creates a restorable snapshot of git state and uncommitted/untracked files.",
+  description:
+    "Internal: creates a restorable snapshot of git state and uncommitted files. Not agent-callable.",
   inputSchema: z.object({
     workflowStepId: z
       .string()
       .optional()
       .describe("Optional workflow step ID to associate with this checkpoint"),
   }),
-  tier: PermissionTier.TIER_1, // Tier 1: Workspace writes / edits
+  tier: PermissionTier.TIER_1,
 };
 
 export async function checkpointHandler(args: { workflowStepId?: string }): Promise<{
@@ -32,8 +36,8 @@ export async function checkpointHandler(args: { workflowStepId?: string }): Prom
   const checkpointId = crypto.randomBytes(8).toString("hex");
 
   try {
-    // 1. Get current git SHA
-    const shaRes = await runCommandUngated("git rev-parse HEAD");
+    // 1. Get current git SHA (argv, no shell)
+    const shaRes = await runArgvUngated("git", ["rev-parse", "HEAD"]);
     if (shaRes.exitCode !== 0) {
       return {
         success: false,
@@ -44,7 +48,7 @@ export async function checkpointHandler(args: { workflowStepId?: string }): Prom
     const gitSha = shaRes.stdout.trim();
 
     // 2. Scan for uncommitted (modified, deleted, staged, untracked) files
-    const statusRes = await runCommandUngated("git status --porcelain");
+    const statusRes = await runArgvUngated("git", ["status", "--porcelain"]);
     if (statusRes.exitCode !== 0) {
       return {
         success: false,

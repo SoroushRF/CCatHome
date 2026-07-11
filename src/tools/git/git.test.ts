@@ -5,6 +5,7 @@ import { registerCapability, clearRegistry } from "../../core/router.js";
 import { invoke } from "../../core/dispatcher.js";
 import { config } from "../../core/config.js";
 import { runCommandGated } from "../../core/process-runner.js";
+import { initGitRepoForTests } from "../../test/init-git-repo.js";
 import { ensureBranchIsolation } from "../../core/git-utils.js";
 import { closeDb } from "../../core/db.js";
 import { gitDiffDefinition, gitDiffHandler } from "./git_diff.js";
