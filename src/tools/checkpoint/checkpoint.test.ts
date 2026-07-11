@@ -135,4 +135,25 @@ describe("Checkpoint & Rollback Subsystem Suite", () => {
     expect(restoreRes.result.success).toBe(false);
     expect(restoreRes.result.error).toBe("backup_missing");
   });
+
+  describe("restore_checkpoint failure contracts (R7.2.5)", () => {
+    it("returns checkpoint_not_found for unknown ids", async () => {
+      const res = await invoke("restore_checkpoint", {
+        checkpointId: "00000000-0000-0000-0000-000000000000",
+      });
+      expect(res.result.success).toBe(false);
+      expect(res.result.error).toBe("checkpoint_not_found");
+    });
+
+    it("returns git_reset_failed when HEAD is not a valid git repo state", async () => {
+      const cpRes = await invoke("checkpoint", {});
+      const checkpointId = cpRes.result.checkpointId;
+      // Destroy .git so reset cannot succeed
+      fs.rmSync(path.join(TEST_DIR, ".git"), { recursive: true, force: true });
+      const restoreRes = await invoke("restore_checkpoint", { checkpointId });
+      expect(restoreRes.result.success).toBe(false);
+      expect(["git_reset_failed", "restore_failed"]).toContain(restoreRes.result.error);
+    });
+  });
+
 });
