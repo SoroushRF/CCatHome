@@ -13,10 +13,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 - Migration `0003-workflow-step-composite.sql`: unique index on `workflow_steps(workflow_id, id)`.
+- Migration `0004-step-summary.sql`: `workflow_steps.summary` column for truncated model-facing logs.
+- `execute_step` returns `stepId`, `summary`, and `logId` (ADR 0005 / remediation R3.3.4–5).
 
 ### Changed
 - Moved `npm install` / `npm i` / `npm ci` from Tier 0 to Tier 2 (lifecycle script risk; remediation R2.1.3).
 - Removed `^node\\b` from Tier 1 auto-allow (remediation R2.1.2).
+- `execute_step` enforces DAG readiness, branch isolation, auto-commit, exec+validation success, and recovery abort (remediation R3).
 
 ### Fixed
 - `execute_step` refuses DAG-blocked steps with `dependencies_unmet` (remediation R3.1.1).

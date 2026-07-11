@@ -228,9 +228,15 @@ export async function executeStepHandler(args: {
 
       db.prepare(`
         UPDATE workflow_steps
-        SET status = ?, retry_count = ?, full_log = ?
+        SET status = ?, retry_count = ?, full_log = ?, summary = ?
         WHERE id = ?
-      `).run(StepStatus.REQUIRES_CONFIRMATION, retryCount, attemptLogs, args.stepId);
+      `).run(
+        StepStatus.REQUIRES_CONFIRMATION,
+        retryCount,
+        attemptLogs,
+        buildSummary(attemptLogs),
+        args.stepId
+      );
 
       db.prepare(`
         UPDATE workflows SET status = ? WHERE id = ?
@@ -295,11 +301,12 @@ export async function executeStepHandler(args: {
   const retryCount = attempt - 1;
 
   // Update DB state
+  const summary = buildSummary(attemptLogs);
   db.prepare(`
     UPDATE workflow_steps
-    SET status = ?, retry_count = ?, full_log = ?
+    SET status = ?, retry_count = ?, full_log = ?, summary = ?
     WHERE id = ?
-  `).run(finalStatus, retryCount, attemptLogs, args.stepId);
+  `).run(finalStatus, retryCount, attemptLogs, summary, args.stepId);
 
   // If the entire workflow has finished or failed, we can update workflow status.
   // We'll query if any steps are still failed or running.
@@ -318,7 +325,6 @@ export async function executeStepHandler(args: {
     UPDATE workflows SET status = ? WHERE id = ?
   `).run(wfStatus, args.workflowId);
 
-  const summary = buildSummary(attemptLogs);
   const logId = persistAttemptLog(attemptLogs);
 
   return {

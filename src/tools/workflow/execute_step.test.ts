@@ -86,12 +86,14 @@ describe("Execute Step Compound Loop Suite", () => {
 
     // Verify DB states
     const db = getDb();
-    const stepRow = db.prepare("SELECT status, retry_count, full_log FROM workflow_steps WHERE id = 'step1'").get() as any;
+    const stepRow = db.prepare("SELECT status, retry_count, full_log, summary FROM workflow_steps WHERE id = 'step1'").get() as any;
     expect(stepRow.status).toBe("completed");
     expect(stepRow.retry_count).toBe(0);
     expect(stepRow.full_log).toContain("=== Attempt 1 ===");
     expect(stepRow.full_log).toContain("Execution Exit Code: 0");
     expect(stepRow.full_log).toContain("Validation Exit Code: 0");
+    expect(stepRow.summary).toContain("=== Attempt 1 ===");
+    expect(stepRow.summary.length).toBeLessThanOrEqual(stepRow.full_log.length);
 
     const branch = await runCommandGated("git branch --show-current");
     expect(branch.stdout.trim()).toBe("ccathome/wf1");
