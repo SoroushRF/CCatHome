@@ -21,6 +21,8 @@ export const runCommandDefinition: CapabilityDefinition = {
   tier: PermissionTier.TIER_1, // Tier 1: Workspace writes / executions
 };
 
+const MAX_READINESS_PATTERN_LENGTH = 200;
+
 export async function runCommandHandler(args: {
   command: string;
   timeoutMs?: number;
@@ -52,6 +54,14 @@ export async function runCommandHandler(args: {
       success: false,
       error: StepStatus.REQUIRES_CONFIRMATION,
       reason: "Command is classified as Tier 2 and requires approval",
+    };
+  }
+
+  if (args.readinessPattern && args.readinessPattern.length > MAX_READINESS_PATTERN_LENGTH) {
+    return {
+      success: false,
+      error: "invalid_readiness_pattern",
+      reason: `readinessPattern exceeds max length of ${MAX_READINESS_PATTERN_LENGTH}`,
     };
   }
 
