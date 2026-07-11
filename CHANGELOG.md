@@ -8,8 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ## [Unreleased]
 
 ### Notes
-- **Version skew:** `package.json` / MCP server still report `1.0.0` while this file’s latest release section is `[2.0.0]`. Package bump is deferred to remediation Phase R7 (`docs/plans/REMEDIATION_TO_90.md` Task R7.7.2).
-- Active engineering track: Phases R0–R7 in `docs/plans/REMEDIATION_TO_90.md` (ADRs 0004–0009 accepted in R0).
+- Remediation Phases R0–R5 landed on `main`; R6–R7 docs/test/release track in progress (`docs/plans/REMEDIATION_TO_90.md`).
+- Historical `[2.0.0]` bullets annotated where superseded by Unreleased remediation entries.
 
 ### Added
 - Migration `0003-workflow-step-composite.sql`: unique index on `workflow_steps(workflow_id, id)`.
@@ -43,19 +43,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 - Stdio Model Context Protocol (MCP) server integration using `@modelcontextprotocol/sdk`.
-- Static capability bootstrap registration module registering 26 Tier A and Tier B capabilities.
+- Static capability bootstrap registration module registering Tier A + Tier B capabilities (historically phrased as “26”; current budget is **12 Tier A** — see Unreleased / ADR 0004).
 - Live glassmorphic web dashboard with Server-Sent Events (SSE) server on port 3141.
 - Authentication tokens and security cookies protecting local dashboard server requests.
 - Gated filesystem VM sandbox interface intercepting `readFile` and `writeFile` statements.
 - Cycle-detection check validating diamond-shaped DAG workflow configurations.
 - Levenshtein-distance tool typo suggestions when executing dispatch invoke.
 - Static gate bypass validator script checks inside `npm run lint`.
-- Copy-on-write `apply_patch` atomic modifications supporting diff patch workflows.
+- Atomic temp-write + rename for `apply_patch` (not full CoW filesystem semantics).
 
 ### Changed
 - Refactored `runCommandGated` to run command operations via `child_process.spawn` instead of `exec`, resolving the 1MB buffer cap issue.
 - Updated path containment checks (`resolveSafePath`) to validate fully resolved real paths via `fs.realpathSync` to block symlink escapes.
-- Moved `npm install` utility commands to Tier 0 (auto-allowed).
+- Moved `npm install` utility commands to Tier 0 (auto-allowed). **Superseded:** Unreleased / R2.1.3 moves `npm install`/`ci` to Tier 2.
 - Moved `git checkout`, `git reset`, and `git clean` commands to Tier 2 (requires confirmation).
 - Modified Tier 3 blocked patterns to run unanchored regexes preventing chaining bypasses.
 
