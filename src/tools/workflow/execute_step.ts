@@ -1,4 +1,7 @@
 import { z } from "zod";
+import * as crypto from "crypto";
+import * as fs from "fs";
+import * as path from "path";
 import {
   PermissionTier,
   CapabilityName,
@@ -17,6 +20,23 @@ import {
   getRunnableSteps,
 } from "../../core/workflow-engine.js";
 import { ensureBranchIsolation, runGit } from "../../core/git-utils.js";
+
+const SUMMARY_MAX_CHARS = 2000;
+
+function buildSummary(fullLog: string): string {
+  if (fullLog.length <= SUMMARY_MAX_CHARS) {
+    return fullLog;
+  }
+  return `${fullLog.slice(0, SUMMARY_MAX_CHARS)}\n...[truncated]`;
+}
+
+function persistAttemptLog(fullLog: string): string {
+  const logId = crypto.randomBytes(8).toString("hex");
+  const logsDir = path.join(config.workspaceRoot, ".ccathome", "logs");
+  fs.mkdirSync(logsDir, { recursive: true });
+  fs.writeFileSync(path.join(logsDir, `cmd_${logId}.log`), fullLog, "utf-8");
+  return logId;
+}
 
 export const executeStepDefinition: CapabilityDefinition = {
   name: CapabilityName.EXECUTE_STEP,
@@ -47,7 +67,10 @@ export async function executeStepHandler(args: {
 }): Promise<{
   success: boolean;
   status?: string;
+  stepId?: string;
+  summary?: string;
   retryCount?: number;
+  logId?: string;
   error?: string;
   reason?: string;
 }> {
@@ -71,7 +94,9 @@ export async function executeStepHandler(args: {
     return {
       success: true,
       status: StepStatus.COMPLETED,
+      stepId: args.stepId,
       retryCount: step.retry_count,
+      summary: "Step already completed",
     };
   }
 
@@ -214,9 +239,16 @@ export async function executeStepHandler(args: {
       config.activeStepId = undefined;
       config.activeWorkflowId = undefined;
 
+      const summary = buildSummary(attemptLogs);
+      const logId = persistAttemptLog(attemptLogs);
+
       return {
         success: false,
         status: StepStatus.REQUIRES_CONFIRMATION,
+        stepId: args.stepId,
+        summary,
+        retryCount,
+        logId,
         error: StepStatus.REQUIRES_CONFIRMATION,
         reason: `Command requires confirmation: '${err.command}'`,
       };
@@ -286,9 +318,15 @@ export async function executeStepHandler(args: {
     UPDATE workflows SET status = ? WHERE id = ?
   `).run(wfStatus, args.workflowId);
 
+  const summary = buildSummary(attemptLogs);
+  const logId = persistAttemptLog(attemptLogs);
+
   return {
     success,
     status: finalStatus,
+    stepId: args.stepId,
+    summary,
     retryCount,
+    logId,
   };
 }

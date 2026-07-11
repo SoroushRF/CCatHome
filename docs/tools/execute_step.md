@@ -21,7 +21,10 @@ Executes a workflow step using an auto-fix micro-loop with checkpointing, valida
 {
   success: boolean,
   status?: "completed" | "failed" | "requires_confirmation",
+  stepId?: string,
+  summary?: string,
   retryCount?: number,
+  logId?: string,
   error?: string,
   reason?: string
 }

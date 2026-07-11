@@ -80,6 +80,9 @@ describe("Execute Step Compound Loop Suite", () => {
     expect(res.result.success).toBe(true);
     expect(res.result.status).toBe("completed");
     expect(res.result.retryCount).toBe(0);
+    expect(res.result.stepId).toBe("step1");
+    expect(res.result.summary).toContain("=== Attempt 1 ===");
+    expect(res.result.logId).toMatch(/^[a-f0-9]+$/);
 
     // Verify DB states
     const db = getDb();
