@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { PermissionTier, CapabilityName } from "../../core/constants.js";
+import {
+  PermissionTier,
+  CapabilityName,
+  StepStatus,
+  WorkflowStatus,
+} from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
 import { runCommandGated } from "../../core/process-runner.js";
 import { getDb } from "../../core/db.js";
@@ -57,10 +62,10 @@ export async function executeStepHandler(args: {
     };
   }
 
-  if (step.status === "completed") {
+  if (step.status === StepStatus.COMPLETED) {
     return {
       success: true,
-      status: "completed",
+      status: StepStatus.COMPLETED,
       retryCount: step.retry_count,
     };
   }
@@ -71,8 +76,8 @@ export async function executeStepHandler(args: {
 
   // Set step status to running
   db.prepare(`
-    UPDATE workflow_steps SET status = 'running' WHERE id = ?
-  `).run(args.stepId);
+    UPDATE workflow_steps SET status = ? WHERE id = ?
+  `).run(StepStatus.RUNNING, args.stepId);
 
   let attemptLogs = "";
   let success = false;
@@ -135,24 +140,24 @@ export async function executeStepHandler(args: {
     if (err instanceof RequiresConfirmationError) {
       attemptLogs += `Step paused: requires user confirmation for command: '${err.command}'\n`;
       const retryCount = Math.max(0, attempt - 1);
-      
-      db.prepare(`
-        UPDATE workflow_steps
-        SET status = 'requires_confirmation', retry_count = ?, full_log = ?
-        WHERE id = ?
-      `).run(retryCount, attemptLogs, args.stepId);
 
       db.prepare(`
-        UPDATE workflows SET status = 'requires_confirmation' WHERE id = ?
-      `).run(args.workflowId);
+        UPDATE workflow_steps
+        SET status = ?, retry_count = ?, full_log = ?
+        WHERE id = ?
+      `).run(StepStatus.REQUIRES_CONFIRMATION, retryCount, attemptLogs, args.stepId);
+
+      db.prepare(`
+        UPDATE workflows SET status = ? WHERE id = ?
+      `).run(WorkflowStatus.REQUIRES_CONFIRMATION, args.workflowId);
 
       config.activeStepId = undefined;
       config.activeWorkflowId = undefined;
 
       return {
         success: false,
-        status: "requires_confirmation",
-        error: "requires_confirmation",
+        status: StepStatus.REQUIRES_CONFIRMATION,
+        error: StepStatus.REQUIRES_CONFIRMATION,
         reason: `Command requires confirmation: '${err.command}'`,
       };
     }
@@ -165,7 +170,7 @@ export async function executeStepHandler(args: {
   config.activeStepId = undefined;
   config.activeWorkflowId = undefined;
 
-  const finalStatus = success ? "completed" : "failed";
+  const finalStatus = success ? StepStatus.COMPLETED : StepStatus.FAILED;
   const retryCount = attempt - 1;
 
   // Update DB state
@@ -181,11 +186,11 @@ export async function executeStepHandler(args: {
     SELECT status FROM workflow_steps WHERE workflow_id = ?
   `).all(args.workflowId) as { status: string }[];
 
-  let wfStatus = "running";
-  if (allSteps.every(s => s.status === "completed")) {
-    wfStatus = "completed";
-  } else if (allSteps.some(s => s.status === "failed")) {
-    wfStatus = "failed";
+  let wfStatus: WorkflowStatus = WorkflowStatus.RUNNING;
+  if (allSteps.every((s) => s.status === StepStatus.COMPLETED)) {
+    wfStatus = WorkflowStatus.COMPLETED;
+  } else if (allSteps.some((s) => s.status === StepStatus.FAILED)) {
+    wfStatus = WorkflowStatus.FAILED;
   }
 
   db.prepare(`
