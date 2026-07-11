@@ -276,6 +276,36 @@ describe("Execute Step Compound Loop Suite", () => {
     expect(stepRow.full_log).toContain("Attempt failed and max retries (2) reached.");
   });
 
+  it("should abort retries when recoveryCommand exits nonzero", async () => {
+    saveWorkflow("wf-rec-fail", "Recovery Fail", [{ id: "stepRecFail", title: "Recover" }]);
+    fs.writeFileSync(path.join(TEST_DIR, "exec.js"), "console.log('run');", "utf-8");
+    fs.writeFileSync(path.join(TEST_DIR, "check.js"), "process.exit(1);", "utf-8");
+    fs.writeFileSync(path.join(TEST_DIR, "recover.js"), "process.exit(9);", "utf-8");
+
+    approveCommandForTests("node exec.js", "stepRecFail");
+    approveCommandForTests("node check.js", "stepRecFail");
+    approveCommandForTests("node recover.js", "stepRecFail");
+    const res = await invoke("execute_step", {
+      workflowId: "wf-rec-fail",
+      stepId: "stepRecFail",
+      executionCommand: "node exec.js",
+      validationCommand: "node check.js",
+      maxRetries: 3,
+      recoveryCommand: "node recover.js",
+    });
+
+    expect(res.result.success).toBe(false);
+    expect(res.result.status).toBe("failed");
+    expect(res.result.retryCount).toBe(0);
+    const db = getDb();
+    const stepRow = db
+      .prepare("SELECT full_log, retry_count FROM workflow_steps WHERE id = 'stepRecFail'")
+      .get() as { full_log: string; retry_count: number };
+    expect(stepRow.full_log).toContain("Recovery Exit Code: 9");
+    expect(stepRow.full_log).toContain("Recovery command failed; aborting retry loop.");
+    expect(stepRow.full_log).not.toContain("=== Attempt 2 ===");
+  });
+
   it("should treat nonzero execution exit as failure even if validation would pass", async () => {
     saveWorkflow("wf-exec-fail", "Exec Fail", [{ id: "stepExecFail", title: "Bad exec" }]);
     fs.writeFileSync(path.join(TEST_DIR, "exec.js"), "process.exit(7);", "utf-8");

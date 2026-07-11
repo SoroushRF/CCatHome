@@ -187,6 +187,10 @@ export async function executeStepHandler(args: {
           attemptLogs += `Recovery Exit Code: ${recRes.exitCode}\n`;
           attemptLogs += `Recovery Stdout:\n${recRes.stdout}\n`;
           attemptLogs += `Recovery Stderr:\n${recRes.stderr}\n\n`;
+          if (recRes.exitCode !== 0) {
+            attemptLogs += "Recovery command failed; aborting retry loop.\n";
+            break;
+          }
         }
       } else {
         attemptLogs += `Attempt failed and max retries (${args.maxRetries}) reached.\n`;
