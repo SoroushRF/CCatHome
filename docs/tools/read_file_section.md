@@ -1,30 +1,23 @@
-# Capability: `read_file_section` (Tier A)
+# Capability: `read_file_section` (Tier B)
 
-Reads a specific line range section of a file located within the workspace.
+Reads a line range from a workspace file.
 
 ## Input Schema
 
 ```typescript
-{
-  path: z.string().describe("The path of the file to read relative to the workspace root"),
-  startLine: z.number().describe("The starting line number, 1-indexed (inclusive)"),
-  endLine: z.number().describe("The ending line number, 1-indexed (inclusive)")
-}
+{ path: z.string(), start: z.number(), end: z.number() }
 ```
 
 ## Output Schema
 
 ```typescript
-{
-  success: boolean,
-  content?: string,
-  error?: string,
-  reason?: string
-}
+{ success: boolean, lines?: string[], error?: string, reason?: string }
 ```
 
 ## Failure Contract
 
-- **`path_traversal_detected`**: If target path resolves outside workspace root.
-- **`file_not_found`**: If the target file does not exist.
-- **`invalid_line_range`**: If startLine/endLine are out of bounds or invalid.
+- **`invalid_path`**, **`file_not_found`**, range errors via `reason`.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

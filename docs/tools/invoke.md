@@ -1,13 +1,13 @@
-# Capability: `invoke` (Tier B)
+# Capability: `invoke` (Tier A)
 
-Routes capability execution requests to registered Tier B capability handlers, validating schemas and suggesting matches for typos.
+Invokes a dispatcher-routed (Tier B) capability by name.
 
 ## Input Schema
 
 ```typescript
 {
-  capability: z.string().describe("The name of the Tier B capability to invoke"),
-  arguments: z.any().describe("The arguments object to pass to the capability")
+  capability: z.string(),
+  args: z.record(z.any())
 }
 ```
 
@@ -18,12 +18,19 @@ Routes capability execution requests to registered Tier B capability handlers, v
   success: boolean,
   result?: any,
   error?: string,
-  reason?: string
+  suggestion?: string,
+  confirmationId?: string,
+  tier?: number
 }
 ```
 
 ## Failure Contract
 
-- **`capability_not_found`**: If no Tier B capability exists with matching name. Includes typo suggestions in the reason message if any close match exists.
-- **`validation_failed`**: If arguments do not conform to capability input schema.
-- **`forbidden_invocation`**: If attempting to direct-invoke a Tier A registered capability.
+- **`unknown_capability`**: Unknown name; optional `suggestion` closest match.
+- **`validation_failed`**: Args fail the target capability Zod schema.
+- **`requires_confirmation`**: Target is Tier 2; pending confirmation may be created.
+- **`permission_denied`**: Tier 3 blocked.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

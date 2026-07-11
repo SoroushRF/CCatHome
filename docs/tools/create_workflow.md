@@ -1,32 +1,23 @@
-# Capability: `create_workflow` (Tier B)
+# Capability: `create_workflow` (Tier A)
 
-Creates a multi-step workflow in the database state runner.
+Creates a DAG workflow; rejects cycles and duplicate step ids.
 
 ## Input Schema
 
 ```typescript
-{
-  name: z.string().describe("The human-readable name of the workflow"),
-  steps: z.array(z.object({
-    id: z.string().describe("The unique ID of the step"),
-    title: z.string().describe("The descriptive title of the step"),
-    depends_on: z.array(z.string()).optional().describe("Optional list of step dependencies")
-  })).describe("The steps making up the DAG workflow")
-}
+{ name: z.string(), steps: Array<{ id: string, title: string, depends_on?: string[] }> }
 ```
 
 ## Output Schema
 
 ```typescript
-{
-  success: boolean,
-  workflowId?: string,
-  error?: string,
-  reason?: string
-}
+{ success: boolean, workflowId?: string, error?: string, reason?: string }
 ```
 
 ## Failure Contract
 
-- **`cyclic_dependency`**: If the steps contain circular dependencies and cannot form a valid DAG.
-- **`step_creation_failed`**: If database insertion fails.
+- **`invalid_workflow`**: Cycles, missing deps, or duplicate step ids (`reason` details).
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

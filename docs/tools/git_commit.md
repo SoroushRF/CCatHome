@@ -1,26 +1,23 @@
 # Capability: `git_commit` (Tier B)
 
-Creates a Git commit with the specified commit message.
+Commits staged files; rejects amending auto-commits.
 
 ## Input Schema
 
 ```typescript
-{
-  message: z.string().describe("The commit message")
-}
+{ message: z.string(), amend?: z.boolean() }
 ```
 
 ## Output Schema
 
 ```typescript
-{
-  success: boolean,
-  sha?: string,
-  error?: string,
-  reason?: string
-}
+{ success: boolean, sha?: string, error?: string, reason?: string }
 ```
 
 ## Failure Contract
 
-- **`git_commit_failed`**: If committing staged changes fails.
+- **`amend_conflicts_with_autocommit`**, **`git_commit_failed`**, **`execution_failed`**.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

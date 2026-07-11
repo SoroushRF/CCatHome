@@ -1,28 +1,23 @@
 # Capability: `detect_workspace` (Tier A)
 
-Orientates the agent layout by scanning for standard patterns (e.g. Node files, Python projects, Git configuration) inside the workspace root.
+Detects project metadata; optional `path` retargets workspace under policy (ADR 0004).
 
 ## Input Schema
 
 ```typescript
-{}
+{ path?: z.string() }
 ```
 
 ## Output Schema
 
 ```typescript
-{
-  success: boolean,
-  hasGit: boolean,
-  hasNode: boolean,
-  packageJsonPresent: boolean,
-  hasPython: boolean,
-  mainFiles: string[],
-  error?: string,
-  reason?: string
-}
+{ success: boolean, language?: string, runtime?: string, packageManager?: string, entryPoints?: string[], dependencies?: any, error?: string, reason?: string }
 ```
 
 ## Failure Contract
 
-- Standard filesystem scan failures return success false with scan description.
+- Retarget rejected outside allowlist / initial tree without confirmation path (`workspace-retarget` errors).
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

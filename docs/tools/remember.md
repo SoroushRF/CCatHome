@@ -1,28 +1,23 @@
 # Capability: `remember` (Tier B)
 
-Stores a key project detail or instruction in the persistent memory store with keyword indices.
+Stores a memory (ADR 0006).
 
 ## Input Schema
 
 ```typescript
-{
-  key: z.string().describe("The memory key descriptor"),
-  value: z.string().describe("The text content value to store"),
-  category: z.string().default("general").describe("Optional category to group memories")
-}
+{ content: z.string(), tags?: z.array(z.string()) }
 ```
 
 ## Output Schema
 
 ```typescript
-{
-  success: boolean,
-  memoryId?: string,
-  error?: string,
-  reason?: string
-}
+{ success: boolean, memoryId?: string, error?: string, reason?: string }
 ```
 
 ## Failure Contract
 
-- **`storage_failed`**: If database write execution fails.
+- Insert failures as `error`/`reason`.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

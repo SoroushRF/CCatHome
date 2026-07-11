@@ -1,31 +1,27 @@
 # Capability: `apply_patch` (Tier A)
 
-Applies standard unified diff format patches atomic-style (copy-on-write) to target files in workspace.
+Applies a unified diff with backup + atomic temp rename.
 
 ## Input Schema
 
 ```typescript
-{
-  filePath: z.string().describe("The workspace path of the file to patch"),
-  patchContent: z.string().describe("The unified diff formatted patch content to apply"),
-  expectedSha: z.string().optional().describe("Optional expected current Git SHA to verify consistency")
-}
+{ path: z.string(), patch: z.string(), expectedSha?: z.string() }
 ```
 
 ## Output Schema
 
 ```typescript
-{
-  success: boolean,
-  hunksApplied: number,
-  newSha?: string,
-  error?: string,
-  reason?: string
-}
+{ success: boolean, appliedHunks?: number, newSha?: string, currentSha?: string, error?: string, reason?: string }
 ```
 
 ## Failure Contract
 
-- **`path_traversal_detected`**: If file path escapes target workspace.
-- **`sha_mismatch`**: If the target workspace current SHA doesn't match the expected SHA.
-- **`patch_failed`**: If patch hunks fail to match original file content cleanly.
+- **`invalid_path`**: Path containment failure.
+- **`sensitive_path_blocked`**: `.env`, `.git/hooks`, etc.
+- **`sha_mismatch`**: `expectedSha` does not match current content.
+- **`patch_failed`**: Hunks do not apply; target untouched.
+- **`backup_failed`** / **`write_failed`**: Backup or rename errors.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

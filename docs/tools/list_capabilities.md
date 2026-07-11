@@ -1,28 +1,23 @@
 # Capability: `list_capabilities` (Tier A)
 
-Lists all available Tier B dispatcher capabilities matching query filters, preventing direct discovery of Tier A tools.
+Lists Tier B capabilities matching an optional query. Never includes Tier A names. Returns at most **5** matches (name-prefix preferred).
 
 ## Input Schema
 
 ```typescript
-{
-  query: z.string().optional().describe("Optional query string to search capability names and descriptions")
-}
+{ query?: z.string() }
 ```
 
 ## Output Schema
 
 ```typescript
-{
-  success: boolean,
-  matches: Array<{
-    name: string,
-    description: string,
-    schema: any
-  }>
-}
+{ matches: Array<{ name: string, description: string, schema: any }> }
 ```
 
 ## Failure Contract
 
-- Standard handlers return empty matches array if query doesn't match any registered elements.
+- None beyond empty `matches` for non-matching queries.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

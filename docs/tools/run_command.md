@@ -1,15 +1,11 @@
 # Capability: `run_command` (Tier A)
 
-Runs ad-hoc shell commands, capturing outputs and handling long-running background processes.
+Runs an ad-hoc shell command through the Permission Gate. Persists `command_log` and returns `logId` on exited/ready/timeout paths.
 
 ## Input Schema
 
 ```typescript
-{
-  command: z.string().describe("The shell command to execute"),
-  timeoutMs: z.number().optional().describe("Timeout in milliseconds before considering it a background process (default 10000)"),
-  readinessPattern: z.string().optional().describe("Optional regex pattern. If matched in stdout, the command returns immediately with status 'ready'")
-}
+{ command: z.string(), timeoutMs?: z.number(), readinessPattern?: z.string() }
 ```
 
 ## Output Schema
@@ -32,7 +28,11 @@ Runs ad-hoc shell commands, capturing outputs and handling long-running backgrou
 
 ## Failure Contract
 
-- **`permission_denied`**: If command matches Tier 3 patterns (blocked).
-- **`requires_confirmation`**: If command matches Tier 2 patterns (requires approval).
-- **`log_setup_failed`**: If logs directory creation fails.
-- **`spawn_failed`**: If child process spawn throws an error.
+- **`requires_confirmation`**: Tier 2 command not approved.
+- **`permission_denied`**: Tier 3.
+- **`invalid_readiness_pattern`**: Pattern too long.
+- **`log_setup_failed`** / **`spawn_failed`**: Setup/spawn errors.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.

@@ -1,31 +1,23 @@
-# Capability: `search_files` (Tier A)
+# Capability: `search_files` (Tier B)
 
-Searches for files matching a textual query or regex pattern within the workspace.
+Workspace content search.
 
 ## Input Schema
 
 ```typescript
-{
-  query: z.string().describe("The search query or regex pattern to look for"),
-  extension: z.string().optional().describe("Optional file extension to restrict search (e.g. '.ts')")
-}
+{ query: z.string() }
 ```
 
 ## Output Schema
 
 ```typescript
-{
-  success: boolean,
-  results?: Array<{
-    path: string,
-    line: number,
-    text: string
-  }>,
-  error?: string,
-  reason?: string
-}
+{ success: boolean, matches?: Array<{ path: string, content?: string }>, error?: string, reason?: string }
 ```
 
 ## Failure Contract
 
-- **`search_failed`**: If directory traversal or pattern matching throws an error.
+- Path / I/O errors as structured `error`/`reason`.
+
+## Changelog
+
+- 2026-07-11: Aligned with remediation R6 code/docs honesty pass.
