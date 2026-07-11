@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 import { config } from "./config.js";
-import { getDb, closeDb } from "./db.js";
+import { getDb, closeDb, resetDbForTests } from "./db.js";
 
 const TEST_DIR = path.resolve(config.workspaceRoot, "temp_db_test");
 
@@ -61,5 +61,26 @@ describe("Database & Migrations Suite", () => {
     db.prepare("INSERT INTO workflows (id, name, status) VALUES (?, ?, 'pending')").run("wf1", "Test Workflow");
     const wf = db.prepare("SELECT name FROM workflows WHERE id = ?").get("wf1") as { name: string } | undefined;
     expect(wf?.name).toBe("Test Workflow");
+  });
+});
+
+describe("isolated DB path (R7.1.2)", () => {
+  const PREV = process.env.CCATHOME_DB_PATH;
+  const ISOLATED = path.resolve(process.cwd(), "temp_db_isolated", "alt.db");
+
+  afterEach(() => {
+    resetDbForTests();
+    if (PREV === undefined) delete process.env.CCATHOME_DB_PATH;
+    else process.env.CCATHOME_DB_PATH = PREV;
+    const dir = path.dirname(ISOLATED);
+    if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("opens CCATHOME_DB_PATH instead of workspace default", () => {
+    process.env.CCATHOME_DB_PATH = ISOLATED;
+    resetDbForTests();
+    const db = getDb();
+    expect(fs.existsSync(ISOLATED)).toBe(true);
+    db.prepare("SELECT 1 AS ok").get();
   });
 });
