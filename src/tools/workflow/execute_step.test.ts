@@ -364,4 +364,40 @@ describe("Execute Step Compound Loop Suite", () => {
     expect(stepRow.full_log).toContain("Execution Exit Code: 7");
     expect(stepRow.full_log).not.toContain("Validation Exit Code:");
   });
+
+  describe("execute_step failure contracts (R7.2.4)", () => {
+    it("returns step_not_found for unknown step ids", async () => {
+      saveWorkflow("wf-missing", "Missing", [{ id: "only", title: "Only" }]);
+      const res = await invoke("execute_step", {
+        workflowId: "wf-missing",
+        stepId: "nope",
+        executionCommand: "true",
+        validationCommand: "true",
+        maxRetries: 0,
+      });
+      expect(res.result.success).toBe(false);
+      expect(res.result.error).toBe("step_not_found");
+    });
+
+    it("returns dependencies_unmet and leaves prior step files intact on rollback path", async () => {
+      saveWorkflow("wf-roll", "Rollback bytes", [
+        { id: "a", title: "A" },
+        { id: "b", title: "B", depends_on: ["a"] },
+      ]);
+      const marker = path.join(TEST_DIR, "pre-existing.txt");
+      fs.writeFileSync(marker, "untouched-bytes\n", "utf-8");
+
+      const res = await invoke("execute_step", {
+        workflowId: "wf-roll",
+        stepId: "b",
+        executionCommand: "node -e \"require('fs').writeFileSync('should-not.txt','x')\"",
+        validationCommand: "true",
+        maxRetries: 0,
+      });
+      expect(res.result.error).toBe("dependencies_unmet");
+      expect(fs.readFileSync(marker, "utf-8")).toBe("untouched-bytes\n");
+      expect(fs.existsSync(path.join(TEST_DIR, "should-not.txt"))).toBe(false);
+    });
+  });
+
 });
