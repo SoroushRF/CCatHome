@@ -89,6 +89,9 @@ describe("Execute Step Compound Loop Suite", () => {
     expect(stepRow.full_log).toContain("=== Attempt 1 ===");
     expect(stepRow.full_log).toContain("Execution Exit Code: 0");
     expect(stepRow.full_log).toContain("Validation Exit Code: 0");
+
+    const branch = await runCommandGated("git branch --show-current");
+    expect(branch.stdout.trim()).toBe("ccathome/wf1");
   });
 
   it("should perform recovery and succeed on attempt 2 (auto-fix micro-loop)", async () => {

@@ -16,6 +16,7 @@ import {
   areStepDependenciesMet,
   getRunnableSteps,
 } from "../../core/workflow-engine.js";
+import { ensureBranchIsolation } from "../../core/git-utils.js";
 
 export const executeStepDefinition: CapabilityDefinition = {
   name: CapabilityName.EXECUTE_STEP,
@@ -111,6 +112,19 @@ export async function executeStepHandler(args: {
   // Set active step ID and workflow ID context
   config.activeStepId = args.stepId;
   config.activeWorkflowId = args.workflowId;
+
+  // Isolate work onto ccathome/<workflowId> before mutating the workspace
+  try {
+    await ensureBranchIsolation(args.workflowId);
+  } catch (err: any) {
+    config.activeStepId = undefined;
+    config.activeWorkflowId = undefined;
+    return {
+      success: false,
+      error: "branch_isolation_failed",
+      reason: err.message,
+    };
+  }
 
   // Set step status to running
   db.prepare(`
