@@ -1,6 +1,13 @@
 # CCatHome Benchmark Results v1
 
-This document records the baseline results, success rates, and containment metrics of the CCatHome agentic loop evaluated against the 10 benchmark tasks defined in `docs/benchmarks/v1-tasks.md`.
+> **PROVISIONAL / NOT AUDITED E2E (2026-07-11):**  
+> This document previously equated the Vitest unit/integration suite pass rate
+> (“59/59”) with autonomous completion of the 10 scaffolded tasks in
+> `v1-tasks.md`. That conflation is **not** an E2E agentic benchmark.  
+> As of the remediation baseline, the Vitest suite had **2 failing tests**
+> before R0.3 fixes and must not be cited as “100% benchmark completion.”  
+> Full rewrite lands in Phases R6/R7 of `docs/plans/REMEDIATION_TO_90.md`
+> (separate unit regression table vs harness results with commit SHA).
 
 ---
 
