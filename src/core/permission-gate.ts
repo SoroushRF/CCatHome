@@ -43,7 +43,8 @@ function loadRulesConfig(): RulesConfig {
   }
 
   // ADR 0007: never load permission-rules.json from the target workspace.
-  // Only trust the server package / install path (and cwd as last-resort package root).
+  // Only trust the server package / install path. Do not fall back to
+  // process.cwd() when it equals workspaceRoot (workspace-planted rules).
   const pathsToTry: string[] = [];
 
   try {
@@ -53,7 +54,11 @@ function loadRulesConfig(): RulesConfig {
     // Ignore in non-ESM/test contexts
   }
 
-  pathsToTry.push(path.resolve(process.cwd(), "permission-rules.json"));
+  const cwdRules = path.resolve(process.cwd(), "permission-rules.json");
+  const workspaceRules = path.resolve(config.workspaceRoot, "permission-rules.json");
+  if (cwdRules !== workspaceRules) {
+    pathsToTry.push(cwdRules);
+  }
 
   for (const rootPath of pathsToTry) {
     try {
