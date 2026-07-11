@@ -64,8 +64,8 @@ export async function main() {
 
   // 4. Start Dashboard Server concurrently on port 3141
   try {
-    await startDashboardServer(3141);
-    console.error("Dashboard server listening on http://localhost:3141");
+    const { token } = await startDashboardServer(3141);
+    console.error(`Dashboard: http://localhost:3141/?token=${token}`);
   } catch (err: any) {
     console.error(`Failed to start dashboard server: ${err.message}`);
   }
