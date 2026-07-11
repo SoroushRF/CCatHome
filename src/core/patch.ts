@@ -39,6 +39,9 @@ export function parsePatch(patchText: string): Hunk[] {
       // Only process lines that are part of a hunk
       if (line.startsWith("-") || line.startsWith("+") || line.startsWith(" ")) {
         currentHunk.lines.push(line);
+      } else if (line.startsWith("\\")) {
+        // e.g. "\ No newline at end of file" — keep current hunk open
+        continue;
       } else {
         // Header info, extra metadata, or blank separator - stop current hunk parsing
         hunks.push(currentHunk);

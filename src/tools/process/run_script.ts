@@ -11,6 +11,7 @@ import { safeWriteFile } from "../../core/safe-write.js";
 
 const DEFAULT_TIMEOUT_MS = 5000;
 const MAX_TIMEOUT_MS = 60_000;
+const MAX_LOG_ENTRIES = 200;
 
 export const runScriptDefinition: CapabilityDefinition = {
   name: CapabilityName.RUN_SCRIPT,
@@ -78,9 +79,15 @@ export async function runScriptHandler(args: {
     console: {
       log: (...logArgs: any[]) => {
         log.push(logArgs.map(String).join(" "));
+        if (log.length > MAX_LOG_ENTRIES) {
+          log.splice(0, log.length - MAX_LOG_ENTRIES);
+        }
       },
       error: (...logArgs: any[]) => {
         log.push(logArgs.map(String).join(" "));
+        if (log.length > MAX_LOG_ENTRIES) {
+          log.splice(0, log.length - MAX_LOG_ENTRIES);
+        }
       },
     },
   };

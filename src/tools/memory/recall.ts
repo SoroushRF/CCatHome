@@ -86,11 +86,12 @@ export async function recallHandler(args: {
   } catch (_err) {
     // 2. Fallback to standard LIKE queries if FTS5 MATCH fails
     try {
-      const wildcard = `%${args.query}%`;
+      const escaped = args.query.replace(/([\\%_])/g, "\\$1");
+      const wildcard = `%${escaped}%`;
       const rows = db.prepare(`
         SELECT key, value, category, -1.0 AS score
         FROM project_memory
-        WHERE value LIKE ? OR category LIKE ?
+        WHERE value LIKE ? ESCAPE '\\' OR category LIKE ? ESCAPE '\\'
         LIMIT ?
       `).all(wildcard, wildcard, limit) as RecallRow[];
 
