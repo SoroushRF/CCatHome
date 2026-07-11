@@ -181,4 +181,18 @@ describe("Filesystem Capabilities Suite", () => {
     expect(namesAfter).not.toContain("move_me.txt");
     expect(namesAfter).toContain("moved.txt");
   });
+
+  it("should block apply_patch to sensitive paths like .env", async () => {
+    const patch = `--- a/.env
++++ b/.env
+@@ -0,0 +1 @@
++SECRET=1
+`;
+    const patchRes = await invoke("apply_patch", {
+      path: ".env",
+      patch,
+    });
+    expect(patchRes.result.success).toBe(false);
+    expect(patchRes.result.error).toBe("sensitive_path_blocked");
+  });
 });

@@ -8,6 +8,7 @@ import { runCommandGated } from "../../core/process-runner.js";
 import { classifyAndGate } from "../../core/permission-gate.js";
 import { config } from "../../core/config.js";
 import { resolveSafePath } from "../../core/path-utils.js";
+import { assertNotSensitiveWorkspacePath } from "../../core/sensitive-paths.js";
 
 export const runScriptDefinition: CapabilityDefinition = {
   name: CapabilityName.RUN_SCRIPT,
@@ -57,6 +58,7 @@ export async function runScriptHandler(args: {
       }
       // Resolving path inside workspace root for safety
       const safePath = resolveSafePath(config.workspaceRoot, relativePath);
+      assertNotSensitiveWorkspacePath(safePath);
       fs.mkdirSync(path.dirname(safePath), { recursive: true });
       fs.writeFileSync(safePath, content, "utf-8");
     },

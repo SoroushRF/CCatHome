@@ -5,6 +5,7 @@ import { z } from "zod";
 import { PermissionTier, CapabilityName } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
 import { resolveSafePath } from "../../core/path-utils.js";
+import { assertNotSensitiveWorkspacePath } from "../../core/sensitive-paths.js";
 import { config } from "../../core/config.js";
 import { parsePatch, applyPatchToContent } from "../../core/patch.js";
 
@@ -38,11 +39,20 @@ export async function applyPatchHandler(args: {
   let targetPath: string;
   try {
     targetPath = resolveSafePath(config.workspaceRoot, args.path);
+    assertNotSensitiveWorkspacePath(targetPath);
   } catch (err: any) {
+    const msg = err.message || String(err);
+    if (msg.startsWith("sensitive_path_blocked")) {
+      return {
+        success: false,
+        error: "sensitive_path_blocked",
+        reason: msg,
+      };
+    }
     return {
       success: false,
       error: "invalid_path",
-      reason: err.message,
+      reason: msg,
     };
   }
 

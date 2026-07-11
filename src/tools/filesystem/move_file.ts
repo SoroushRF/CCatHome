@@ -4,6 +4,7 @@ import { z } from "zod";
 import { PermissionTier, CapabilityName } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
 import { resolveSafePath } from "../../core/path-utils.js";
+import { assertNotSensitiveWorkspacePath } from "../../core/sensitive-paths.js";
 import { config } from "../../core/config.js";
 
 export const moveFileDefinition: CapabilityDefinition = {
@@ -30,11 +31,20 @@ export async function moveFileHandler(args: {
   try {
     sourcePath = resolveSafePath(config.workspaceRoot, args.source);
     destPath = resolveSafePath(config.workspaceRoot, args.destination);
+    assertNotSensitiveWorkspacePath(destPath);
   } catch (err: any) {
+    const msg = err.message || String(err);
+    if (msg.startsWith("sensitive_path_blocked")) {
+      return {
+        success: false,
+        error: "sensitive_path_blocked",
+        reason: msg,
+      };
+    }
     return {
       success: false,
       error: "invalid_path",
-      reason: err.message,
+      reason: msg,
     };
   }
 
