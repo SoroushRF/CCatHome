@@ -20,6 +20,7 @@ export async function runCommandUngated(command: string): Promise<GatedRunResult
       shell: true,
       cwd: config.workspaceRoot,
       env: scrubEnv(process.env),
+      stdio: ["ignore", "pipe", "pipe"],
     });
 
     const stdoutChunks: string[] = [];
@@ -92,6 +93,7 @@ export async function runArgvGated(
       shell: false,
       cwd: config.workspaceRoot,
       env: scrubEnv(process.env),
+      stdio: ["ignore", "pipe", "pipe"],
     });
 
     const stdoutChunks: string[] = [];
