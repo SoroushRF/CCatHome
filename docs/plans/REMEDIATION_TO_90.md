@@ -1344,12 +1344,12 @@ These are Task R0.3.1 and R0.3.2. Do not start R2 until green.
 
 | Dimension | Score | Evidence |
 |---|---:|---|
-| Structure & conventions | /100 | |
-| Logic / product contracts | /100 | |
-| Security | /100 | |
-| Testing | /100 | |
-| Docs / honesty | /100 | |
-| **Overall** | **/100** | Target ≥90 |
+| Structure & conventions | 92 | See `docs/plans/SCORECARD_90.md` |
+| Logic / product contracts | 93 | See scorecard |
+| Security | 91 | See scorecard + `src/security/` |
+| Testing | 91 | See scorecard |
+| Docs / honesty | 93 | See scorecard |
+| **Overall** | **92** | Target ≥90 — filled R7.7.3 |
 
 ---
 
