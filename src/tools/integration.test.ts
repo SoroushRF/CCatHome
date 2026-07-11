@@ -6,6 +6,7 @@ import { registerCapability, clearRegistry } from "../core/router.js";
 import { invoke } from "../core/dispatcher.js";
 import { config } from "../core/config.js";
 import { runCommandGated } from "../core/process-runner.js";
+import { initGitRepoForTests } from "../test/init-git-repo.js";
 import { ensureBranchIsolation } from "../core/git-utils.js";
 import { applyPatchDefinition, applyPatchHandler } from "./filesystem/apply_patch.js";
 import { runCommandDefinition, runCommandHandler } from "./process/run_command.js";
@@ -48,10 +49,10 @@ describe("Phase 1 Integration Gate (End-to-End)", () => {
     }
 
     // Initialize clean git repository in integration directory
-    await runCommandGated("git init");
-    await runCommandGated('git config user.email "gate@ccathome.com"');
-    await runCommandGated('git config user.name "Gate CCatHome"');
-    await runCommandGated("git checkout -b main");
+    await initGitRepoForTests({
+      email: "gate@ccathome.com",
+      name: "Gate CCatHome",
+    });
 
     // Write initial source file
     const srcDir = path.join(TEST_DIR, "src");
@@ -133,6 +134,7 @@ describe("Phase 1 Integration Gate (End-to-End)", () => {
     expect(commitRes.result.sha).toBeDefined();
 
     // Verify main branch remains at the initial commit state (isolation holds)
+    approveCommandForTests("git checkout main");
     await runCommandGated("git checkout main");
     const mainContent = fs.readFileSync(path.join(TEST_DIR, "src", "calculator.mjs"), "utf-8");
     expect(mainContent).toContain("return a - b;"); // Still has the bug in main!
@@ -159,10 +161,10 @@ describe("Phase 2 Integration Gate (End-to-End)", () => {
     }
 
     // Initialize clean git repository in integration directory
-    await runCommandGated("git init");
-    await runCommandGated('git config user.email "gate2@ccathome.com"');
-    await runCommandGated('git config user.name "Gate2 CCatHome"');
-    await runCommandGated("git checkout -b main");
+    await initGitRepoForTests({
+      email: "gate2@ccathome.com",
+      name: "Gate2 CCatHome",
+    });
 
     // Write initial source file
     const srcDir = path.join(TEST_DIR, "src");

@@ -36,10 +36,10 @@ describe("Human-in-the-Loop Confirmation Suite (Step 3.2)", () => {
     fs.mkdirSync(TEST_DIR, { recursive: true });
 
     // Initialize git
-    await runCommandGated("git init");
-    await runCommandGated('git config user.email "test@ccathome.com"');
-    await runCommandGated('git config user.name "Test CCatHome"');
-    await runCommandGated("git checkout -b main");
+    await initGitRepoForTests({
+      email: "test@ccathome.com",
+      name: "Test CCatHome",
+    });
 
     // Create first commit to have a valid git HEAD
     fs.writeFileSync(path.join(TEST_DIR, "dummy.txt"), "hello\n", "utf-8");

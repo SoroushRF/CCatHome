@@ -29,10 +29,10 @@ describe("Checkpoint & Rollback Subsystem Suite", () => {
     }
 
     // Initialize clean git repository
-    await runCommandGated("git init");
-    await runCommandGated('git config user.email "test@ccathome.com"');
-    await runCommandGated('git config user.name "Test CCatHome"');
-    await runCommandGated("git checkout -b main");
+    await initGitRepoForTests({
+      email: "test@ccathome.com",
+      name: "Test CCatHome",
+    });
 
     // Write initial source file
     fs.writeFileSync(path.join(TEST_DIR, "file1.txt"), "original content 1\n", "utf-8");

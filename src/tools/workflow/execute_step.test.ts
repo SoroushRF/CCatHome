@@ -31,10 +31,10 @@ describe("Execute Step Compound Loop Suite", () => {
     fs.mkdirSync(TEST_DIR, { recursive: true });
 
     // Initialize git
-    await runCommandGated("git init");
-    await runCommandGated('git config user.email "test@ccathome.com"');
-    await runCommandGated('git config user.name "Test CCatHome"');
-    await runCommandGated("git checkout -b main");
+    await initGitRepoForTests({
+      email: "test@ccathome.com",
+      name: "Test CCatHome",
+    });
 
     // Write a dummy file to commit
     fs.writeFileSync(path.join(TEST_DIR, "dummy.txt"), "dummy\n", "utf-8");

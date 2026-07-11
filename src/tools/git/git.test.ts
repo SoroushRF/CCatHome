@@ -34,10 +34,10 @@ describe("Git Capabilities Suite", () => {
     }
 
     // Initialize temporary git repo in the test directory
-    await runCommandGated("git init");
-    await runCommandGated('git config user.email "test@ccathome.com"');
-    await runCommandGated('git config user.name "Test CCatHome"');
-    await runCommandGated("git checkout -b main");
+    await initGitRepoForTests({
+      email: "test@ccathome.com",
+      name: "Test CCatHome",
+    });
 
     // Create a commit so HEAD exists (otherwise many git tools fail)
     fs.writeFileSync(path.join(TEST_DIR, "init.txt"), "hello", "utf-8");

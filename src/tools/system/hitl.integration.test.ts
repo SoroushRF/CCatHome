@@ -29,10 +29,10 @@ describe("HITL dashboard approve → resume execute_step", () => {
     }
     fs.mkdirSync(TEST_DIR, { recursive: true });
 
-    await runCommandGated("git init");
-    await runCommandGated('git config user.email "hitl@ccathome.com"');
-    await runCommandGated('git config user.name "HITL"');
-    await runCommandGated("git checkout -b main");
+    await initGitRepoForTests({
+      email: "hitl@ccathome.com",
+      name: "HITL",
+    });
     fs.writeFileSync(path.join(TEST_DIR, "dummy.txt"), "hello\n", "utf-8");
     await runCommandGated("git add dummy.txt");
     await runCommandGated('git commit -m "init"');
