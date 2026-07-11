@@ -33,7 +33,8 @@ jobs:
       run: npm run typecheck
 
     - name: Test
-      # Tier A budget asserted in src/index.test.ts (TIER_A_BUDGET / ADR 0004)
+      # R7.5.5: Tier A budget asserted in src/index.test.ts (TIER_A_BUDGET / ADR 0004);
+      # failing the budget fails this job — no separate script required.
       run: npm run test
 
     - name: Coverage
