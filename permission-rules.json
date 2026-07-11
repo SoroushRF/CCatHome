@@ -72,7 +72,11 @@
         "write_file.*\\.git/hooks",
         "write_file.*\\.env",
         "write_file.*permission-rules\\.json",
-        "write_file.*\\.sqlite"
+        "write_file.*\\.sqlite",
+        "\\|\\s*/bin/(ba)?sh\\b",
+        "\\|\\s*/usr/bin/(ba)?sh\\b",
+        "curl\\b.*\\|",
+        "wget\\b.*\\|"
       ]
     }
   ],
