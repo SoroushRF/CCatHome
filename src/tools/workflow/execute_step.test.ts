@@ -94,6 +94,31 @@ describe("Execute Step Compound Loop Suite", () => {
     expect(branch.stdout.trim()).toBe("ccathome/wf1");
   });
 
+  it("should auto-commit workspace changes with [ccathome-auto] on success", async () => {
+    saveWorkflow("wf-auto", "Auto Commit", [{ id: "stepAuto", title: "Write file" }]);
+
+    fs.writeFileSync(
+      path.join(TEST_DIR, "exec.js"),
+      `import fs from 'fs'; fs.writeFileSync('out.txt', 'done', 'utf-8');`,
+      "utf-8"
+    );
+    fs.writeFileSync(path.join(TEST_DIR, "check.js"), "process.exit(0);", "utf-8");
+
+    approveCommandForTests("node exec.js", "stepAuto");
+    approveCommandForTests("node check.js", "stepAuto");
+    const res = await invoke("execute_step", {
+      workflowId: "wf-auto",
+      stepId: "stepAuto",
+      executionCommand: "node exec.js",
+      validationCommand: "node check.js",
+      maxRetries: 0,
+    });
+
+    expect(res.result.success).toBe(true);
+    const logRes = await runCommandGated("git log -n 1 --pretty=format:%s");
+    expect(logRes.stdout.trim()).toBe("[ccathome-auto] step stepAuto completed");
+  });
+
   it("should perform recovery and succeed on attempt 2 (auto-fix micro-loop)", async () => {
     const steps = [{ id: "step2", title: "Format project files" }];
     saveWorkflow("wf2", "Formatter Workflow", steps);

@@ -16,7 +16,7 @@ import {
   areStepDependenciesMet,
   getRunnableSteps,
 } from "../../core/workflow-engine.js";
-import { ensureBranchIsolation } from "../../core/git-utils.js";
+import { ensureBranchIsolation, runGit } from "../../core/git-utils.js";
 
 export const executeStepDefinition: CapabilityDefinition = {
   name: CapabilityName.EXECUTE_STEP,
@@ -217,6 +217,35 @@ export async function executeStepHandler(args: {
     config.activeStepId = undefined;
     config.activeWorkflowId = undefined;
     throw err;
+  }
+
+  // Auto-commit successful workspace mutations on the isolated branch
+  if (success) {
+    try {
+      const statusRes = await runGit(["status", "--porcelain"]);
+      if (statusRes.stdout.trim()) {
+        attemptLogs += "Auto-committing workspace changes...\n";
+        const addRes = await runGit(["add", "-A"], "git add -A");
+        if (addRes.exitCode !== 0) {
+          success = false;
+          attemptLogs += `Auto-commit staging failed: ${addRes.stderr}\n`;
+        } else {
+          const message = `[ccathome-auto] step ${args.stepId} completed`;
+          const commitRes = await runGit(["commit", "-m", message]);
+          if (commitRes.exitCode !== 0) {
+            success = false;
+            attemptLogs += `Auto-commit failed: ${commitRes.stderr || commitRes.stdout}\n`;
+          } else {
+            attemptLogs += `Auto-commit created: ${message}\n`;
+          }
+        }
+      } else {
+        attemptLogs += "Auto-commit skipped: no workspace changes\n";
+      }
+    } catch (err: any) {
+      success = false;
+      attemptLogs += `Auto-commit failed: ${err.message}\n`;
+    }
   }
 
   config.activeStepId = undefined;
