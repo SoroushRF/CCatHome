@@ -1,12 +1,15 @@
 import * as http from "http";
 import * as crypto from "crypto";
 import { getDb } from "./db.js";
+import { CommandStatus, WorkflowStatus } from "./constants.js";
 
 let serverInstance: http.Server | null = null;
 let pollInterval: NodeJS.Timeout | null = null;
 let activeToken: string | null = null;
 
-// The static HTML UI page for the dashboard (premium dark glassmorphic design)
+// CSS class / color token suffixes intentionally match StepStatus / WorkflowStatus /
+// CommandStatus string values (see constants.ts). Client HTML cannot import TS enums;
+// comparisons below interpolate enum values at server render time.
 const HTML_CONTENT = `
 <!DOCTYPE html>
 <html lang="en">
@@ -383,7 +386,7 @@ const HTML_CONTENT = `
         row.className = 'meta-item';
         row.innerHTML = \`
           <span class="meta-label">PID: \${proc.pid}</span>
-          <span class="meta-value" style="color: var(--color-\${proc.status === 'running' ? 'running' : 'completed'})">\${proc.status}</span>
+          <span class="meta-value" style="color: var(--color-\${proc.status === '${CommandStatus.RUNNING}' ? '${CommandStatus.RUNNING}' : '${WorkflowStatus.COMPLETED}'})">\${proc.status}</span>
         \`;
         procList.appendChild(row);
       });
