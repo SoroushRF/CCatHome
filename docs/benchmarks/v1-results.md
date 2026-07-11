@@ -4,7 +4,8 @@
 **Remediation:** Phases R0–R7 (`docs/plans/REMEDIATION_TO_90.md`)
 
 This document **must not** conflate Vitest unit/integration pass rates with autonomous
-completion of the 10 scaffolded tasks in `v1-tasks.md`.
+completion of the 10 scaffolded tasks in `v1-tasks.md`. The harness below drives the same
+capabilities with scripted success criteria — it is **not** an LLM-in-the-loop agent run.
 
 ---
 
@@ -12,38 +13,36 @@ completion of the 10 scaffolded tasks in `v1-tasks.md`.
 
 | Suite | Role | Status |
 | :--- | :--- | :--- |
-| `src/**/*.test.ts` | Capability + gate + workflow + HITL regression | Run `npm test` — authoritative CI gate |
-| `src/security/*.test.ts` | Dedicated adversarial suite (R7) | Run `npm run test:adversarial` |
-
-These tests exercise real temp workspaces and git where needed, but they are **not** an
-agentic E2E harness that drives an LLM through `v1-tasks.md`.
+| `src/**/*.test.ts` (excl. optional filter) | Capability + gate + workflow + HITL regression | `npm test` — CI gate |
+| `src/security/*.test.ts` | Dedicated adversarial suite (R7.3) | `vitest run src/security` / CI `adversarial` job |
 
 ---
 
-## B) E2E harness status
+## B) E2E harness (`npm run benchmark:v1`)
 
-| Task | Intent | Harness | Status |
+| Task | Intent | Harness file | Status |
 | :--- | :--- | :--- | :--- |
-| 1 Patch | `apply_patch` | `scripts/run-benchmark-task.ts --task 1` | Scaffolded (R7) |
-| 2 Build | `execute_step` validation | `--task 2` | Scaffolded |
-| 3 Tests | process + step | `--task 3` | Scaffolded |
-| 4 Compile recovery | caller `recoveryCommand` | `--task 4` | Scaffolded |
-| 5 Test recovery | caller `recoveryCommand` | `--task 5` | Scaffolded |
-| 6 Branch isolation | `ccathome/<id>` | `--task 6` | Scaffolded |
-| 7 Path containment | adversarial paths | `--task 7` | Scaffolded |
-| 8–10 Process / concurrency / rollback | process + checkpoint | `--task 8`…`10` | Scaffolded |
-
-Record dated results with commit SHA under **Harness runs** below when executed.
+| 1 Patch | `apply_patch` | `src/benchmarks/task1.test.ts` | Pass |
+| 2 Build | `execute_step` → dist | `src/benchmarks/task2.test.ts` | Pass |
+| 3 Tests | step summary | `src/benchmarks/task3.test.ts` | Pass |
+| 4 Compile recovery | caller `recoveryCommand` | `src/benchmarks/task4.test.ts` | Pass |
+| 5 Test recovery | caller `recoveryCommand` | `src/benchmarks/task5.test.ts` | Pass |
+| 6 Branch isolation | `ccathome/<id>` | `src/benchmarks/task6.test.ts` | Pass |
+| 7 Path containment | adversarial paths | `src/benchmarks/task7.test.ts` | Pass |
+| 8 Process polling | readiness + `read_process_output` | `src/benchmarks/task8.test.ts` | Pass |
+| 9 DAG diamond | deps gating | `src/benchmarks/task9.test.ts` | Pass |
+| 10 Checkpoint rollback | restore after fail | `src/benchmarks/task10.test.ts` | Pass |
 
 ### Harness runs
 
 | Date | Commit | Command | Result |
 | :--- | :--- | :--- | :--- |
-| 2026-07-11 | _(fill on run)_ | `npm run benchmark:v1` | Pending / see CI |
+| 2026-07-11 | `0f58e6d` | `npm run benchmark:v1` | **10/10 passed** (≈30s) |
 
 ---
 
 ## Methodology notes
 
 - Tasks 4–5 use **caller-supplied** `recoveryCommand` (ADR 0003), not an internal LLM auto-fixer.
-- Path containment and gate chaining are proven primarily by adversarial unit tests, not by claiming “100% benchmark.”
+- Path containment and gate chaining are also covered by `src/security/adversarial.*.test.ts`.
+- CLI: `npm run benchmark:v1 -- --task <id>` filters by Vitest test name (`task N`).

@@ -113,5 +113,5 @@ This document defines the 10 scaffolded project tasks used to evaluate the corre
 
 | Task | Entry | Status |
 |------|-------|--------|
-| 1–10 | `npm run benchmark:v1 -- --task <id>` via `scripts/run-benchmark-task.ts` | Scaffold — most tasks still stub `not_implemented` until wired |
-| Unit proxies | `npm test` | See `v1-results.md` |
+| 1–10 | `npm run benchmark:v1 -- --task <id>` → `src/benchmarks/taskN.test.ts` | Implemented (scripted E2E; see `v1-results.md`) |
+| Unit / adversarial | `npm test` / `vitest run src/security` | See `v1-results.md` |
