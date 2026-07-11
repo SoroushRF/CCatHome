@@ -19,7 +19,8 @@ export function scrubEnv(base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessE
       EDITOR: "true",
     };
   }
-  const secretName = /(_TOKEN|_SECRET|_PASSWORD|_PASS|API_KEY|AWS_|AZURE_|GITHUB_TOKEN|NPM_TOKEN)/i;
+  const secretName =
+    /(_TOKEN|_SECRET|_PASSWORD|_PASS|API_KEY|AWS_|AZURE_|GITHUB_TOKEN|NPM_TOKEN|DATABASE_URL|PRIVATE_KEY|CREDENTIAL)/i;
 
   for (const [key, value] of Object.entries(base)) {
     if (value === undefined) continue;
