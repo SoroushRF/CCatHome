@@ -1,6 +1,12 @@
 import { z } from "zod";
+import * as crypto from "crypto";
 import { getCapability, getAllCapabilities } from "./router.js";
-import { PermissionTier, CapabilityName } from "./constants.js";
+import { PermissionTier, CapabilityName, ConfirmationStatus, StepStatus } from "./constants.js";
+import { getDb } from "./db.js";
+import { config } from "./config.js";
+
+/** Max Tier A MCP tools (ADR 0004). CI asserts TIER_A_TOOLS.size === this. */
+export const TIER_A_BUDGET = 12;
 
 // Helper to determine if a capability is a Tier A tool
 export const TIER_A_TOOLS = new Set<string>([
@@ -22,7 +28,9 @@ export interface InvokeResult {
   success: boolean;
   result?: any;
   error?: string;
+  suggestion?: string;
   tier?: PermissionTier;
+  confirmationId?: string;
 }
 
 export async function invoke(capabilityName: string, args: any): Promise<InvokeResult> {
@@ -33,7 +41,8 @@ export async function invoke(capabilityName: string, args: any): Promise<InvokeR
     const suggestion = findClosestMatch(capabilityName, allNames);
     return {
       success: false,
-      error: `unknown_capability${suggestion ? `. Did you mean: ${suggestion}?` : ""}`,
+      error: "unknown_capability",
+      suggestion: suggestion || undefined,
     };
   }
 
@@ -62,12 +71,27 @@ export async function invoke(capabilityName: string, args: any): Promise<InvokeR
   }
 
   if (definition.tier === PermissionTier.TIER_2) {
-    // In Phase 3, this will raise ask_user(type: "permission") confirmation.
-    // For Phase 1, we return permission denied to represent needing confirmation.
+    let confirmationId: string | undefined;
+    try {
+      const db = getDb();
+      confirmationId = crypto.randomUUID();
+      db.prepare(`
+        INSERT INTO pending_confirmations (id, step_id, command, status)
+        VALUES (?, ?, ?, ?)
+      `).run(
+        confirmationId,
+        config.activeStepId || null,
+        `capability:${capabilityName}`,
+        ConfirmationStatus.PENDING
+      );
+    } catch {
+      confirmationId = undefined;
+    }
     return {
       success: false,
-      error: "requires_confirmation: Tier 2 capabilities require explicit user approval",
+      error: StepStatus.REQUIRES_CONFIRMATION,
       tier: definition.tier,
+      confirmationId,
     };
   }
 
@@ -86,22 +110,27 @@ export async function invoke(capabilityName: string, args: any): Promise<InvokeR
 /**
  * Lists capabilities, matching the query against name and description.
  * Never includes Tier A tools in the output to avoid model tool selection confusion.
+ * Returns at most 5 matches (PRD §5.3), preferring name-prefix hits.
  */
 export function listCapabilities(query?: string): Array<{ name: string; description: string; schema: any }> {
   const capabilities = getAllCapabilities();
   const filtered = capabilities.filter((c) => !TIER_A_TOOLS.has(c.definition.name));
 
   const matched = query
-    ? filtered.filter((c) => {
-        const q = query.toLowerCase();
-        return (
-          c.definition.name.toLowerCase().includes(q) ||
-          c.definition.description.toLowerCase().includes(q)
-        );
-      })
+    ? filtered
+        .map((c) => {
+          const q = query.toLowerCase();
+          const name = c.definition.name.toLowerCase();
+          const desc = c.definition.description.toLowerCase();
+          const prefix = name.startsWith(q) ? 0 : name.includes(q) ? 1 : desc.includes(q) ? 2 : -1;
+          return { c, prefix };
+        })
+        .filter((x) => x.prefix >= 0)
+        .sort((a, b) => a.prefix - b.prefix || a.c.definition.name.localeCompare(b.c.definition.name))
+        .map((x) => x.c)
     : filtered;
 
-  return matched.map((c) => ({
+  return matched.slice(0, 5).map((c) => ({
     name: c.definition.name,
     description: c.definition.description,
     schema: c.definition.inputSchema,

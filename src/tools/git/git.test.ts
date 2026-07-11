@@ -6,6 +6,7 @@ import { invoke } from "../../core/dispatcher.js";
 import { config } from "../../core/config.js";
 import { runCommandGated } from "../../core/process-runner.js";
 import { ensureBranchIsolation } from "../../core/git-utils.js";
+import { closeDb } from "../../core/db.js";
 import { gitDiffDefinition, gitDiffHandler } from "./git_diff.js";
 import { gitCommitDefinition, gitCommitHandler } from "./git_commit.js";
 import { gitBranchDefinition, gitBranchHandler } from "./git_branch.js";
@@ -15,6 +16,7 @@ const TEST_DIR = path.resolve(config.workspaceRoot, "temp_git_test");
 
 describe("Git Capabilities Suite", () => {
   beforeEach(async () => {
+    closeDb();
     clearRegistry();
     config.workspaceRoot = TEST_DIR;
 
@@ -50,6 +52,7 @@ describe("Git Capabilities Suite", () => {
   });
 
   afterEach(async () => {
+    closeDb();
     if (fs.existsSync(TEST_DIR)) {
       try {
         fs.rmSync(TEST_DIR, { recursive: true, force: true });

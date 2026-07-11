@@ -162,7 +162,8 @@ here, in the same PR).
 
 ### 2.6 Reviewing any PR touching `core/permission-gate.ts`
 
-1. Mandatory second reviewer (PRD §11 cross-phase practice) — this is a
+1. Mandatory second reviewer (`IMPLEMENTATION_PLAN.md` Cross-Phase
+   Practices / `docs/plans/REMEDIATION_TO_90.md` §0.2) — this is a
    hard gate, not a suggestion, given the file's role as the single
    security chokepoint for the entire system.
 2. Reviewer explicitly checks: does every new or modified execution path

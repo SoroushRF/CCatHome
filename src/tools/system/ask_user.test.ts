@@ -11,11 +11,15 @@ import { executeStepDefinition, executeStepHandler } from "../workflow/execute_s
 import { askUserDefinition, askUserHandler } from "./ask_user.js";
 import { checkpointDefinition, checkpointHandler } from "../checkpoint/checkpoint.js";
 import { restoreCheckpointDefinition, restoreCheckpointHandler } from "../checkpoint/restore_checkpoint.js";
+import { approveCommandForTests } from "../../test/approve-command.js";
 
 const TEST_DIR = path.resolve(process.cwd(), "temp_ask_user_test");
 
 describe("Human-in-the-Loop Confirmation Suite (Step 3.2)", () => {
+  const PREV_TOKEN = process.env.CCATHOME_APPROVAL_TOKEN;
+
   beforeEach(async () => {
+    process.env.CCATHOME_APPROVAL_TOKEN = "test-approval-secret";
     clearRegistry();
     config.workspaceRoot = TEST_DIR;
 
@@ -48,6 +52,11 @@ describe("Human-in-the-Loop Confirmation Suite (Step 3.2)", () => {
   });
 
   afterEach(() => {
+    if (PREV_TOKEN === undefined) {
+      delete process.env.CCATHOME_APPROVAL_TOKEN;
+    } else {
+      process.env.CCATHOME_APPROVAL_TOKEN = PREV_TOKEN;
+    }
     closeDb();
     if (fs.existsSync(TEST_DIR)) {
       try {
@@ -57,6 +66,29 @@ describe("Human-in-the-Loop Confirmation Suite (Step 3.2)", () => {
       }
     }
     config.workspaceRoot = process.cwd();
+  });
+
+  it("should reject naked response approval without approvalToken", async () => {
+    const wfRes = await invoke("create_workflow", {
+      name: "Self-approve blocked",
+      steps: [{ id: "stepA", title: "Push" }],
+    });
+    const workflowId = wfRes.result.workflowId;
+    await invoke("execute_step", {
+      workflowId,
+      stepId: "stepA",
+      executionCommand: "git push",
+      validationCommand: "true",
+      maxRetries: 0,
+    });
+
+    const denied = await invoke("ask_user", {
+      type: "permission",
+      command: "git push",
+      response: "approved",
+    });
+    expect(denied.result.success).toBe(false);
+    expect(denied.result.error).toBe("approval_token_required");
   });
 
   it("should pause workflow execution when encountering a Tier 2 command, and resume on approval", async () => {
@@ -77,7 +109,7 @@ describe("Human-in-the-Loop Confirmation Suite (Step 3.2)", () => {
       stepId: "stepA",
       executionCommand: "git push",
       validationCommand: "node -e \"process.exit(0)\"",
-      maxRetries: 1
+      maxRetries: 0
     });
 
     expect(execRes.success).toBe(true);
@@ -99,12 +131,15 @@ describe("Human-in-the-Loop Confirmation Suite (Step 3.2)", () => {
     expect(confirmation.command).toBe("git push");
     expect(confirmation.status).toBe("pending");
 
-    // 5. Approve the command via ask_user
+    // 5. Approve the command via ask_user with secret (ADR 0009)
+    config.activeStepId = "stepA";
     const approvalRes = await invoke("ask_user", {
       type: "permission",
       command: "git push",
-      response: "approved"
+      response: "approved",
+      approvalToken: "test-approval-secret",
     });
+    config.activeStepId = undefined;
     expect(approvalRes.success).toBe(true);
     expect(approvalRes.result.success).toBe(true);
 
@@ -117,18 +152,20 @@ describe("Human-in-the-Loop Confirmation Suite (Step 3.2)", () => {
     expect(stepRowApproved.status).toBe("running");
 
     // 6. Resume execute_step
+    const validationCommand = "node -e \"process.exit(0)\"";
+    approveCommandForTests(validationCommand, "stepA");
     const resumeRes = await invoke("execute_step", {
       workflowId,
       stepId: "stepA",
       executionCommand: "git push", // should execute now since it is approved
-      validationCommand: "node -e \"process.exit(0)\"",
-      maxRetries: 1
+      validationCommand,
+      maxRetries: 0
     });
 
     expect(resumeRes.success).toBe(true);
-    // Since "git push" runs now, it will fail with exit code 128 (No configured destination),
-    // and since validation checks return exit code 0, the step will still be completed successfully!
-    expect(resumeRes.result.success).toBe(true);
-    expect(resumeRes.result.status).toBe("completed");
+    // git push is approved and runs, but exits nonzero without a remote — success
+    // requires both execution and validation exit 0 (ADR 0005 / R3.3.1).
+    expect(resumeRes.result.success).toBe(false);
+    expect(resumeRes.result.status).toBe("failed");
   });
 });

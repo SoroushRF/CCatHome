@@ -4,6 +4,7 @@ import { z } from "zod";
 import { PermissionTier, CapabilityName } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
 import { config } from "../../core/config.js";
+import { resolveSafePath } from "../../core/path-utils.js";
 
 export const searchFilesDefinition: CapabilityDefinition = {
   name: CapabilityName.SEARCH_FILES,
@@ -31,7 +32,7 @@ export async function searchFilesHandler(args: {
   reason?: string;
 }> {
   const matches: SearchMatch[] = [];
-  const root = config.workspaceRoot;
+  const root = resolveSafePath(config.workspaceRoot, ".");
   const lowercaseQuery = args.query.toLowerCase();
 
   // Ignores list

@@ -14,7 +14,11 @@ export async function main() {
   // Support specifying custom workspace root via argv or env
   const customWorkspace = process.argv[2] || process.env.WORKSPACE_ROOT;
   if (customWorkspace) {
-    config.workspaceRoot = path.resolve(customWorkspace);
+    const resolved = path.resolve(customWorkspace);
+    config.workspaceRoot = resolved;
+    config.initialWorkspaceRoot = resolved;
+  } else {
+    config.initialWorkspaceRoot = config.workspaceRoot;
   }
 
   // 1. Bootstrap all tools
@@ -60,8 +64,8 @@ export async function main() {
 
   // 4. Start Dashboard Server concurrently on port 3141
   try {
-    await startDashboardServer(3141);
-    console.error("Dashboard server listening on http://localhost:3141");
+    const { token } = await startDashboardServer(3141);
+    console.error(`Dashboard: http://localhost:3141/?token=${token}`);
   } catch (err: any) {
     console.error(`Failed to start dashboard server: ${err.message}`);
   }

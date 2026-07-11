@@ -1,3 +1,4 @@
+import { approveCommandForTests } from "../test/approve-command.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
@@ -69,6 +70,7 @@ describe("Phase 1 Integration Gate (End-to-End)", () => {
   });
 
   afterEach(async () => {
+    closeDb();
     if (fs.existsSync(TEST_DIR)) {
       try {
         fs.rmSync(TEST_DIR, { recursive: true, force: true });
@@ -105,8 +107,10 @@ describe("Phase 1 Integration Gate (End-to-End)", () => {
 
     // 3. Verify changes with a command (run_command)
     // Run an inline Node command to test calculator output
+    const runCmd = `node -e "import('./src/calculator.mjs').then(m => { console.log('RESULT=' + m.add(5, 7)); })"`;
+    approveCommandForTests(runCmd);
     const runRes = await invoke("run_command", {
-      command: `node -e "import('./src/calculator.mjs').then(m => { console.log('RESULT=' + m.add(5, 7)); })"`,
+      command: runCmd,
     });
     expect(runRes.success).toBe(true);
     expect(runRes.result.status).toBe("exited");
@@ -131,6 +135,7 @@ describe("Phase 1 Integration Gate (End-to-End)", () => {
 
 describe("Phase 2 Integration Gate (End-to-End)", () => {
   beforeEach(async () => {
+    closeDb();
     clearRegistry();
     config.workspaceRoot = TEST_DIR;
 
@@ -213,10 +218,23 @@ describe("Phase 2 Integration Gate (End-to-End)", () => {
       steps,
     });
     expect(wfRes.success).toBe(true);
+    expect(wfRes.result.success).toBe(true);
     const workflowId = wfRes.result.workflowId;
     expect(workflowId).toBeDefined();
 
-    // 3. Complete Step A directly in database to unlock Step B
+    // 3. Blocked dependent step must fail with dependencies_unmet before Step A completes
+    const blockedRes = await invoke("execute_step", {
+      workflowId,
+      stepId: "stepB",
+      executionCommand: "node -e \"console.log('should not run')\"",
+      validationCommand: "node -e \"process.exit(0)\"",
+      maxRetries: 0,
+    });
+    expect(blockedRes.success).toBe(true);
+    expect(blockedRes.result.success).toBe(false);
+    expect(blockedRes.result.error).toBe("dependencies_unmet");
+
+    // Complete Step A to unlock Step B (setup for recovery path below)
     const db = getDb();
     db.prepare("UPDATE workflow_steps SET status = 'completed' WHERE id = 'stepA'").run();
 
@@ -241,10 +259,14 @@ describe("Phase 2 Integration Gate (End-to-End)", () => {
 
     // 5. Execute Step B using execute_step (auto-fix micro-loop)
     // Execution command just runs print, validation checks calculator content, recovery fixes it.
+    const execCmd = "node -e \"console.log('running checks')\"";
+    approveCommandForTests(execCmd, "stepB");
+    approveCommandForTests("node check.js", "stepB");
+    approveCommandForTests("node recover.js", "stepB");
     const execStepRes = await invoke("execute_step", {
       workflowId,
       stepId: "stepB",
-      executionCommand: "node -e \"console.log('running checks')\"",
+      executionCommand: execCmd,
       validationCommand: "node check.js",
       maxRetries: 2,
       recoveryCommand: "node recover.js",
@@ -254,6 +276,13 @@ describe("Phase 2 Integration Gate (End-to-End)", () => {
     expect(execStepRes.result.success).toBe(true);
     expect(execStepRes.result.status).toBe("completed");
     expect(execStepRes.result.retryCount).toBe(1); // validation failed on attempt 1, succeeded on attempt 2 after recovery!
+    expect(execStepRes.result.summary).toBeDefined();
+    expect(execStepRes.result.logId).toMatch(/^[a-f0-9]+$/);
+
+    const branch = await runCommandGated("git branch --show-current");
+    expect(branch.stdout.trim()).toBe(`ccathome/${workflowId}`);
+    const autoMsg = await runCommandGated("git log -n 1 --pretty=format:%s");
+    expect(autoMsg.stdout.trim()).toBe("[ccathome-auto] step stepB completed");
 
     // Verify DB states: workflow completed
     const stepRow = db.prepare("SELECT status, retry_count, full_log FROM workflow_steps WHERE id = 'stepB'").get() as any;

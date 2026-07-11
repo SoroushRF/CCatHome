@@ -10,6 +10,7 @@ import { saveWorkflow } from "../../core/workflow-engine.js";
 import { executeStepDefinition, executeStepHandler } from "./execute_step.js";
 import { checkpointDefinition, checkpointHandler } from "../checkpoint/checkpoint.js";
 import { restoreCheckpointDefinition, restoreCheckpointHandler } from "../checkpoint/restore_checkpoint.js";
+import { approveCommandForTests } from "../../test/approve-command.js";
 
 const TEST_DIR = path.resolve(config.workspaceRoot, "temp_execute_step_test");
 
@@ -65,6 +66,8 @@ describe("Execute Step Compound Loop Suite", () => {
     fs.writeFileSync(path.join(TEST_DIR, "check.js"), "process.exit(0);", "utf-8");
 
     // 3. Execute step
+    approveCommandForTests("node exec.js", "step1");
+    approveCommandForTests("node check.js", "step1");
     const res = await invoke("execute_step", {
       workflowId: "wf1",
       stepId: "step1",
@@ -77,15 +80,48 @@ describe("Execute Step Compound Loop Suite", () => {
     expect(res.result.success).toBe(true);
     expect(res.result.status).toBe("completed");
     expect(res.result.retryCount).toBe(0);
+    expect(res.result.stepId).toBe("step1");
+    expect(res.result.summary).toContain("=== Attempt 1 ===");
+    expect(res.result.logId).toMatch(/^[a-f0-9]+$/);
 
     // Verify DB states
     const db = getDb();
-    const stepRow = db.prepare("SELECT status, retry_count, full_log FROM workflow_steps WHERE id = 'step1'").get() as any;
+    const stepRow = db.prepare("SELECT status, retry_count, full_log, summary FROM workflow_steps WHERE id = 'step1'").get() as any;
     expect(stepRow.status).toBe("completed");
     expect(stepRow.retry_count).toBe(0);
     expect(stepRow.full_log).toContain("=== Attempt 1 ===");
     expect(stepRow.full_log).toContain("Execution Exit Code: 0");
     expect(stepRow.full_log).toContain("Validation Exit Code: 0");
+    expect(stepRow.summary).toContain("=== Attempt 1 ===");
+    expect(stepRow.summary.length).toBeLessThanOrEqual(stepRow.full_log.length);
+
+    const branch = await runCommandGated("git branch --show-current");
+    expect(branch.stdout.trim()).toBe("ccathome/wf1");
+  });
+
+  it("should auto-commit workspace changes with [ccathome-auto] on success", async () => {
+    saveWorkflow("wf-auto", "Auto Commit", [{ id: "stepAuto", title: "Write file" }]);
+
+    fs.writeFileSync(
+      path.join(TEST_DIR, "exec.js"),
+      `import fs from 'fs'; fs.writeFileSync('out.txt', 'done', 'utf-8');`,
+      "utf-8"
+    );
+    fs.writeFileSync(path.join(TEST_DIR, "check.js"), "process.exit(0);", "utf-8");
+
+    approveCommandForTests("node exec.js", "stepAuto");
+    approveCommandForTests("node check.js", "stepAuto");
+    const res = await invoke("execute_step", {
+      workflowId: "wf-auto",
+      stepId: "stepAuto",
+      executionCommand: "node exec.js",
+      validationCommand: "node check.js",
+      maxRetries: 0,
+    });
+
+    expect(res.result.success).toBe(true);
+    const logRes = await runCommandGated("git log -n 1 --pretty=format:%s");
+    expect(logRes.stdout.trim()).toBe("[ccathome-auto] step stepAuto completed");
   });
 
   it("should perform recovery and succeed on attempt 2 (auto-fix micro-loop)", async () => {
@@ -112,6 +148,9 @@ describe("Execute Step Compound Loop Suite", () => {
     `, "utf-8");
 
     // Execute step
+    approveCommandForTests("node exec.js", "step2");
+    approveCommandForTests("node check.js", "step2");
+    approveCommandForTests("node recover.js", "step2");
     const res = await invoke("execute_step", {
       workflowId: "wf2",
       stepId: "step2",
@@ -138,6 +177,80 @@ describe("Execute Step Compound Loop Suite", () => {
     expect(stepRow.full_log).toContain("Validation Exit Code: 0");
   });
 
+  it("should refuse steps whose DAG dependencies are unmet", async () => {
+    saveWorkflow("wf-dag", "DAG Guard", [
+      { id: "root", title: "Root" },
+      { id: "child", title: "Child", depends_on: ["root"] },
+    ]);
+
+    fs.writeFileSync(path.join(TEST_DIR, "exec.js"), "console.log('noop');", "utf-8");
+    fs.writeFileSync(path.join(TEST_DIR, "check.js"), "process.exit(0);", "utf-8");
+
+    approveCommandForTests("node exec.js", "child");
+    approveCommandForTests("node check.js", "child");
+    const res = await invoke("execute_step", {
+      workflowId: "wf-dag",
+      stepId: "child",
+      executionCommand: "node exec.js",
+      validationCommand: "node check.js",
+      maxRetries: 0,
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.result.success).toBe(false);
+    expect(res.result.error).toBe("dependencies_unmet");
+
+    const db = getDb();
+    const stepRow = db
+      .prepare("SELECT status FROM workflow_steps WHERE id = 'child'")
+      .get() as { status: string };
+    expect(stepRow.status).toBe("pending");
+  });
+
+  it("should not auto-commit when the step fails validation", async () => {
+    saveWorkflow("wf-fail-nc", "No Commit Fail", [{ id: "stepFail", title: "Fail" }]);
+    fs.writeFileSync(
+      path.join(TEST_DIR, "exec.js"),
+      `import fs from 'fs'; fs.writeFileSync('fail-out.txt', 'x', 'utf-8');`,
+      "utf-8"
+    );
+    fs.writeFileSync(path.join(TEST_DIR, "check.js"), "process.exit(1);", "utf-8");
+
+    approveCommandForTests("node exec.js", "stepFail");
+    approveCommandForTests("node check.js", "stepFail");
+    const before = await runCommandGated("git rev-parse HEAD");
+    const res = await invoke("execute_step", {
+      workflowId: "wf-fail-nc",
+      stepId: "stepFail",
+      executionCommand: "node exec.js",
+      validationCommand: "node check.js",
+      maxRetries: 0,
+    });
+
+    expect(res.result.success).toBe(false);
+    expect(res.result.status).toBe("failed");
+    const after = await runCommandGated("git rev-parse HEAD");
+    expect(after.stdout.trim()).toBe(before.stdout.trim());
+    const log = await runCommandGated("git log -n 1 --pretty=format:%s");
+    expect(log.stdout.trim()).not.toContain("[ccathome-auto]");
+  });
+
+  it("should not auto-commit when paused for confirmation", async () => {
+    saveWorkflow("wf-pause-nc", "No Commit Pause", [{ id: "stepPause", title: "Push" }]);
+    const before = await runCommandGated("git rev-parse HEAD");
+    const res = await invoke("execute_step", {
+      workflowId: "wf-pause-nc",
+      stepId: "stepPause",
+      executionCommand: "git push",
+      validationCommand: "node -e \"process.exit(0)\"",
+      maxRetries: 0,
+    });
+
+    expect(res.result.status).toBe("requires_confirmation");
+    const after = await runCommandGated("git rev-parse HEAD");
+    expect(after.stdout.trim()).toBe(before.stdout.trim());
+  });
+
   it("should fail step and record log when max retries exceeded", async () => {
     const steps = [{ id: "step3", title: "Deploy application" }];
     saveWorkflow("wf3", "Deploy Workflow", steps);
@@ -145,6 +258,8 @@ describe("Execute Step Compound Loop Suite", () => {
     fs.writeFileSync(path.join(TEST_DIR, "exec.js"), "console.log('deploying');", "utf-8");
     fs.writeFileSync(path.join(TEST_DIR, "check.js"), "process.exit(1);", "utf-8"); // always fails
 
+    approveCommandForTests("node exec.js", "step3");
+    approveCommandForTests("node check.js", "step3");
     const res = await invoke("execute_step", {
       workflowId: "wf3",
       stepId: "step3",
@@ -163,6 +278,90 @@ describe("Execute Step Compound Loop Suite", () => {
     expect(stepRow.status).toBe("failed");
     expect(stepRow.retry_count).toBe(2);
     expect(stepRow.full_log).toContain("=== Attempt 3 ===");
-    expect(stepRow.full_log).toContain("Validation failed and max retries (2) reached.");
+    expect(stepRow.full_log).toContain("Attempt failed and max retries (2) reached.");
+  });
+
+  it("should interpret maxRetries:0 as a single attempt with no recovery", async () => {
+    saveWorkflow("wf-mr0", "MaxRetries Zero", [{ id: "stepMR0", title: "Once" }]);
+    fs.writeFileSync(path.join(TEST_DIR, "exec.js"), "console.log('x');", "utf-8");
+    fs.writeFileSync(path.join(TEST_DIR, "check.js"), "process.exit(1);", "utf-8");
+    fs.writeFileSync(path.join(TEST_DIR, "recover.js"), "process.exit(0);", "utf-8");
+
+    approveCommandForTests("node exec.js", "stepMR0");
+    approveCommandForTests("node check.js", "stepMR0");
+    approveCommandForTests("node recover.js", "stepMR0");
+    const res = await invoke("execute_step", {
+      workflowId: "wf-mr0",
+      stepId: "stepMR0",
+      executionCommand: "node exec.js",
+      validationCommand: "node check.js",
+      maxRetries: 0,
+      recoveryCommand: "node recover.js",
+    });
+
+    expect(res.result.success).toBe(false);
+    expect(res.result.retryCount).toBe(0);
+    const db = getDb();
+    const stepRow = db
+      .prepare("SELECT full_log FROM workflow_steps WHERE id = 'stepMR0'")
+      .get() as { full_log: string };
+    expect(stepRow.full_log).toContain("=== Attempt 1 ===");
+    expect(stepRow.full_log).not.toContain("=== Attempt 2 ===");
+    expect(stepRow.full_log).not.toContain("Running recovery command");
+  });
+
+  it("should abort retries when recoveryCommand exits nonzero", async () => {
+    saveWorkflow("wf-rec-fail", "Recovery Fail", [{ id: "stepRecFail", title: "Recover" }]);
+    fs.writeFileSync(path.join(TEST_DIR, "exec.js"), "console.log('run');", "utf-8");
+    fs.writeFileSync(path.join(TEST_DIR, "check.js"), "process.exit(1);", "utf-8");
+    fs.writeFileSync(path.join(TEST_DIR, "recover.js"), "process.exit(9);", "utf-8");
+
+    approveCommandForTests("node exec.js", "stepRecFail");
+    approveCommandForTests("node check.js", "stepRecFail");
+    approveCommandForTests("node recover.js", "stepRecFail");
+    const res = await invoke("execute_step", {
+      workflowId: "wf-rec-fail",
+      stepId: "stepRecFail",
+      executionCommand: "node exec.js",
+      validationCommand: "node check.js",
+      maxRetries: 3,
+      recoveryCommand: "node recover.js",
+    });
+
+    expect(res.result.success).toBe(false);
+    expect(res.result.status).toBe("failed");
+    expect(res.result.retryCount).toBe(0);
+    const db = getDb();
+    const stepRow = db
+      .prepare("SELECT full_log, retry_count FROM workflow_steps WHERE id = 'stepRecFail'")
+      .get() as { full_log: string; retry_count: number };
+    expect(stepRow.full_log).toContain("Recovery Exit Code: 9");
+    expect(stepRow.full_log).toContain("Recovery command failed; aborting retry loop.");
+    expect(stepRow.full_log).not.toContain("=== Attempt 2 ===");
+  });
+
+  it("should treat nonzero execution exit as failure even if validation would pass", async () => {
+    saveWorkflow("wf-exec-fail", "Exec Fail", [{ id: "stepExecFail", title: "Bad exec" }]);
+    fs.writeFileSync(path.join(TEST_DIR, "exec.js"), "process.exit(7);", "utf-8");
+    fs.writeFileSync(path.join(TEST_DIR, "check.js"), "process.exit(0);", "utf-8");
+
+    approveCommandForTests("node exec.js", "stepExecFail");
+    approveCommandForTests("node check.js", "stepExecFail");
+    const res = await invoke("execute_step", {
+      workflowId: "wf-exec-fail",
+      stepId: "stepExecFail",
+      executionCommand: "node exec.js",
+      validationCommand: "node check.js",
+      maxRetries: 0,
+    });
+
+    expect(res.result.success).toBe(false);
+    expect(res.result.status).toBe("failed");
+    const db = getDb();
+    const stepRow = db
+      .prepare("SELECT full_log FROM workflow_steps WHERE id = 'stepExecFail'")
+      .get() as { full_log: string };
+    expect(stepRow.full_log).toContain("Execution Exit Code: 7");
+    expect(stepRow.full_log).not.toContain("Validation Exit Code:");
   });
 });

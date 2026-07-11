@@ -3,11 +3,14 @@ import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
 import { z } from "zod";
-import { PermissionTier, CapabilityName } from "../../core/constants.js";
+import { PermissionTier, CapabilityName, StepStatus, CommandStatus } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
 import { classifyAndGate } from "../../core/permission-gate.js";
 import { config } from "../../core/config.js";
 import { registerProcess } from "../../core/process-registry.js";
+import { scrubEnv } from "../../core/scrub-env.js";
+import { tailLines } from "../../core/context-manager.js";
+import { getDb } from "../../core/db.js";
 
 export const runCommandDefinition: CapabilityDefinition = {
   name: CapabilityName.RUN_COMMAND,
@@ -19,6 +22,8 @@ export const runCommandDefinition: CapabilityDefinition = {
   }),
   tier: PermissionTier.TIER_1, // Tier 1: Workspace writes / executions
 };
+
+const MAX_READINESS_PATTERN_LENGTH = 200;
 
 export async function runCommandHandler(args: {
   command: string;
@@ -49,8 +54,16 @@ export async function runCommandHandler(args: {
     }
     return {
       success: false,
-      error: "requires_confirmation",
+      error: StepStatus.REQUIRES_CONFIRMATION,
       reason: "Command is classified as Tier 2 and requires approval",
+    };
+  }
+
+  if (args.readinessPattern && args.readinessPattern.length > MAX_READINESS_PATTERN_LENGTH) {
+    return {
+      success: false,
+      error: "invalid_readiness_pattern",
+      reason: `readinessPattern exceeds max length of ${MAX_READINESS_PATTERN_LENGTH}`,
     };
   }
 
@@ -76,7 +89,7 @@ export async function runCommandHandler(args: {
   const child = child_process.spawn(command, {
     shell: true,
     cwd: config.workspaceRoot,
-    env: { ...process.env, PAGER: "cat" },
+    env: scrubEnv(process.env),
   });
 
   const stdoutLines: string[] = [];
@@ -97,49 +110,72 @@ export async function runCommandHandler(args: {
 
   return new Promise((resolve) => {
     let resolved = false;
+    let checkInterval: NodeJS.Timeout | null = null;
 
-    const cleanup = () => {
-      logStream.end();
-    };
+    const endLogStream = (): Promise<void> =>
+      new Promise((resolveEnd) => {
+        if (logStream.writableEnded) {
+          // end() already called; wait for finish if needed
+          if (logStream.writableFinished) {
+            resolveEnd();
+          } else {
+            logStream.once("finish", () => resolveEnd());
+          }
+          return;
+        }
+        logStream.end(() => resolveEnd());
+      });
 
-    const getCappedOutput = (arr: string[]) => {
-      const full = arr.join("");
-      const lines = full.split(/\r?\n/);
-      if (lines.length <= 20) return full;
-      return `... (truncated ${lines.length - 20} lines) ...\n` + lines.slice(-20).join("\n");
-    };
+    const getCappedOutput = (arr: string[]) => tailLines(arr.join(""), 20);
 
-    child.on("exit", (code) => {
-      didExit = true;
-      cleanup();
-
-      if (!resolved) {
-        resolved = true;
-        resolve({
-          success: true,
-          status: "exited",
-          stdout: getCappedOutput(stdoutLines),
-          stderr: getCappedOutput(stderrLines),
-          exitCode: code ?? 0,
-          logId,
-        });
+    const upsertCommandLog = (status: string, pid?: number) => {
+      try {
+        const db = getDb();
+        db.prepare(`
+          INSERT INTO command_log (id, pid, log_path, status)
+          VALUES (?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET pid = excluded.pid, status = excluded.status
+        `).run(logId, pid ?? null, logPath, status);
+      } catch {
+        // DB optional in early tests
       }
+    };
+
+    // Prefer 'close' over 'exit' so all stdio 'data' events are delivered first
+    child.on("close", (code) => {
+      didExit = true;
+      if (checkInterval) clearInterval(checkInterval);
+
+      void endLogStream().then(() => {
+        if (!resolved) {
+          resolved = true;
+          upsertCommandLog(CommandStatus.EXITED, child.pid);
+          resolve({
+            success: true,
+            status: "exited",
+            stdout: getCappedOutput(stdoutLines),
+            stderr: getCappedOutput(stderrLines),
+            exitCode: code ?? 0,
+            logId,
+          });
+        }
+      });
     });
 
     child.on("error", (err) => {
-      cleanup();
-      if (!resolved) {
-        resolved = true;
-        resolve({
-          success: false,
-          error: "spawn_failed",
-          reason: err.message,
-        });
-      }
+      void endLogStream().then(() => {
+        if (!resolved) {
+          resolved = true;
+          resolve({
+            success: false,
+            error: "spawn_failed",
+            reason: err.message,
+          });
+        }
+      });
     });
 
     // Check readiness pattern if provided
-    let checkInterval: NodeJS.Timeout | null = null;
     if (args.readinessPattern) {
       const regex = new RegExp(args.readinessPattern);
       checkInterval = setInterval(() => {
@@ -157,10 +193,12 @@ export async function runCommandHandler(args: {
               startedAt: new Date(),
             };
             registerProcess(child.pid!, activeProc);
+            upsertCommandLog(CommandStatus.READY, child.pid);
             resolve({
               success: true,
               pid: child.pid,
               status: "ready",
+              logId,
               logPath,
               recentOutput: getCappedOutput(stdoutLines),
             });
@@ -183,10 +221,12 @@ export async function runCommandHandler(args: {
           startedAt: new Date(),
         };
         registerProcess(child.pid!, activeProc);
+        upsertCommandLog(CommandStatus.RUNNING, child.pid);
         resolve({
           success: true,
           pid: child.pid,
           status: "timeout",
+          logId,
           logPath,
           recentOutput: getCappedOutput(stdoutLines),
         });

@@ -64,10 +64,14 @@ export async function checkpointHandler(args: {
 
     for (const line of lines) {
       const code = line.slice(0, 2);
-      const relativePath = line.slice(2).trim().replace(/^"|"$/g, ""); // strip git quotes if present
+      let relativePath = line.slice(2).trim().replace(/^"|"$/g, "");
+      // git status rename forms: "R  old -> new" / "RM old -> new"
+      if (/\s->\s/.test(relativePath)) {
+        relativePath = relativePath.split(/\s->\s/).pop()!.replace(/^"|"$/g, "").trim();
+      }
       
       const isUntracked = code.includes("??");
-      const isDeleted = code.includes("D");
+      const isDeleted = code.includes("D") && !code.includes("R");
 
       // Skip system/metadata/dependencies directories
       if (
@@ -107,7 +111,12 @@ export async function checkpointHandler(args: {
         fs.mkdirSync(path.dirname(backupFilePath), { recursive: true });
         
         if (fs.existsSync(absolutePath)) {
-          fs.copyFileSync(absolutePath, backupFilePath);
+          const stat = fs.statSync(absolutePath);
+          if (stat.isDirectory()) {
+            copyDirRecursive(absolutePath, backupFilePath);
+          } else {
+            fs.copyFileSync(absolutePath, backupFilePath);
+          }
           backupMeta.push({
             originalPath: relativePath,
             backupPath: path.relative(config.workspaceRoot, backupFilePath),
@@ -135,5 +144,18 @@ export async function checkpointHandler(args: {
       error: "checkpoint_failed",
       reason: err.message,
     };
+  }
+}
+
+function copyDirRecursive(src: string, dest: string): void {
+  fs.mkdirSync(dest, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const from = path.join(src, entry.name);
+    const to = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      copyDirRecursive(from, to);
+    } else if (entry.isFile()) {
+      fs.copyFileSync(from, to);
+    }
   }
 }

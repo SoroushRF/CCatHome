@@ -91,4 +91,42 @@ describe("Memory Subsystem Suite", () => {
     expect(res.result.memories.length).toBeGreaterThanOrEqual(1);
     expect(res.result.memories[0].content).toContain("Special syntax fallback");
   });
+
+  it("should rank a varied corpus for qualitative queries", async () => {
+    const corpus = [
+      ["Use parameterized SQL queries always", ["sql", "security"]],
+      ["License headers required on every source file", ["license"]],
+      ["Prefer vitest for unit tests", ["testing"]],
+      ["Dashboard token must be printed at startup", ["dashboard", "security"]],
+      ["Never load permission-rules from workspace", ["security", "gate"]],
+      ["Auto-commit successful steps with ccathome-auto", ["git", "workflow"]],
+      ["Escape LIKE wildcards in recall fallback", ["memory"]],
+      ["Context manager truncates command output", ["context"]],
+      ["Tier 2 commands require human approval", ["hitl"]],
+      ["Branch isolation uses ccathome prefix", ["git"]],
+      ["npm install is Tier 2 due to lifecycle scripts", ["npm", "security"]],
+      ["expand_log only accepts hex logId", ["logs"]],
+      ["Checkpoint copies untracked directories", ["checkpoint"]],
+      ["list_capabilities returns at most five matches", ["discovery"]],
+      ["Clarification waits for dashboard response", ["hitl"]],
+      ["run_script freezes the sandbox object", ["sandbox"]],
+      ["Sensitive paths block .env writes", ["security"]],
+      ["Recovery abort stops retry loops", ["workflow"]],
+      ["SSE streams pending confirmations", ["dashboard"]],
+      ["Patch parser ignores no-newline markers", ["patch"]],
+    ] as const;
+
+    for (const [content, tags] of corpus) {
+      await invoke("remember", { content, tags: [...tags] });
+    }
+
+    const q1 = await invoke("recall", { query: "permission-rules workspace" });
+    expect(q1.result.memories[0].content).toContain("permission-rules");
+
+    const q2 = await invoke("recall", { query: "ccathome-auto" });
+    expect(q2.result.memories[0].content).toContain("Auto-commit");
+
+    const q3 = await invoke("recall", { query: "LIKE wildcards" });
+    expect(q3.result.memories[0].content).toContain("LIKE wildcards");
+  });
 });

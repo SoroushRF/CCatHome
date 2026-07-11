@@ -23,11 +23,29 @@ const FS_WHITELIST_FILES = new Set([
   path.resolve('src/tools/system/open_project.ts')
 ]);
 
+/** Whitelisted files must reference at least one of these safety markers. */
+const SAFETY_MARKERS = [
+  'classifyAndGate',
+  'runCommandGated',
+  'runArgvGated',
+  'runGit',
+  'resolveSafePath',
+  'safeWriteFile',
+  'assertNotSensitiveWorkspacePath',
+  'prepareWorkspaceRetarget',
+];
+
+/** Only these tool files may call runCommandUngated (temporary until ADR 0010). */
+const UNGATED_ALLOWLIST = new Set([
+  path.resolve('src/tools/checkpoint/checkpoint.ts'),
+  path.resolve('src/tools/checkpoint/restore_checkpoint.ts'),
+]);
+
 function isFsWhitelisted(filePath) {
   if (FS_WHITELIST_FILES.has(filePath)) {
     return true;
   }
-  return FS_WHITELIST_DIRS.some(dir => filePath.startsWith(dir));
+  return FS_WHITELIST_DIRS.some(dir => filePath.startsWith(dir + path.sep) || filePath.startsWith(dir));
 }
 
 let hasErrors = false;
@@ -39,16 +57,16 @@ function scanDir(dir) {
     if (entry.isDirectory()) {
       scanDir(fullPath);
     } else if (entry.isFile() && entry.name.endsWith('.ts')) {
-      // Ignore test files as they are validation suites, not capability implementations
       if (entry.name.endsWith('.test.ts')) {
         continue;
       }
 
       const content = fs.readFileSync(fullPath, 'utf-8');
-      
-      // Simple regex checks for import or require statements
-      const hasChildProcess = /import\s+.*\s+from\s+['"]child_process['"]|require\(['"]child_process['"]\)/.test(content);
-      const hasFs = /import\s+.*\s+from\s+['"]fs['"]|import\s+.*\s+from\s+['"]fs\/promises['"]|require\(['"]fs['"]\)/.test(content);
+
+      const hasChildProcess =
+        /import\s+.*\s+from\s+['"]child_process['"]|import\s+.*\s+from\s+['"]node:child_process['"]|require\(['"](?:node:)?child_process['"]\)/.test(content);
+      const hasFs =
+        /import\s+.*\s+from\s+['"]fs['"]|import\s+.*\s+from\s+['"]fs\/promises['"]|import\s+.*\s+from\s+['"]node:fs['"]|import\s+.*\s+from\s+['"]node:fs\/promises['"]|require\(['"](?:node:)?fs(?:\/promises)?['"]\)/.test(content);
 
       if (hasChildProcess && !CHILD_PROCESS_WHITELIST.has(fullPath)) {
         console.error(`Lint Error: Gated execution bypass detected in '${fullPath}'. Direct import of 'child_process' is forbidden. Use runCommandGated helper instead.`);
@@ -57,6 +75,25 @@ function scanDir(dir) {
 
       if (hasFs && !isFsWhitelisted(fullPath)) {
         console.error(`Lint Error: Gated execution bypass detected in '${fullPath}'. Direct import of 'fs' is forbidden outside whitelisted modules.`);
+        hasErrors = true;
+      }
+
+      const isWhitelisted =
+        CHILD_PROCESS_WHITELIST.has(fullPath) || isFsWhitelisted(fullPath);
+      if (isWhitelisted) {
+        const hasMarker = SAFETY_MARKERS.some((m) => content.includes(m));
+        if (!hasMarker) {
+          console.error(
+            `Lint Error: Whitelisted tool '${fullPath}' must reference a gate/safe helper (${SAFETY_MARKERS.join(', ')}).`
+          );
+          hasErrors = true;
+        }
+      }
+
+      if (content.includes('runCommandUngated') && !UNGATED_ALLOWLIST.has(fullPath)) {
+        console.error(
+          `Lint Error: runCommandUngated call site not allowlisted in '${fullPath}'. Only checkpoint/restore may use it temporarily.`
+        );
         hasErrors = true;
       }
     }

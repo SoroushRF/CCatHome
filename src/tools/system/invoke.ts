@@ -20,12 +20,18 @@ export async function invokeHandler(args: {
   success: boolean;
   result?: any;
   error?: string;
+  suggestion?: string;
+  confirmationId?: string;
+  tier?: number;
 }> {
   const result = await invoke(args.capability, args.args);
   if (!result.success) {
     return {
       success: false,
       error: result.error,
+      suggestion: result.suggestion,
+      confirmationId: result.confirmationId,
+      tier: result.tier,
     };
   }
   return {

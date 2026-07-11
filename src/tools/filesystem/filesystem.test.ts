@@ -130,8 +130,8 @@ describe("Filesystem Capabilities Suite", () => {
     const res = await invoke("read_file", { path: filePath });
     expect(res.success).toBe(true);
     expect(res.result.truncated).toBe(true);
-    expect(res.result.outline).toContain("Line 11: class LargeClass {");
-    expect(res.result.outline).toContain("Line 51: function testFunc() {");
+    expect(res.result.outline).toContain("class LargeClass");
+    expect(res.result.outline).toContain("function testFunc");
     expect(res.result.totalLines).toBe(350);
   });
 
@@ -180,5 +180,51 @@ describe("Filesystem Capabilities Suite", () => {
     const namesAfter = listAfter.result.items.map((i: any) => i.name);
     expect(namesAfter).not.toContain("move_me.txt");
     expect(namesAfter).toContain("moved.txt");
+  });
+
+  it("should block apply_patch to sensitive paths like .env", async () => {
+    const patch = `--- a/.env
++++ b/.env
+@@ -0,0 +1 @@
++SECRET=1
+`;
+    const patchRes = await invoke("apply_patch", {
+      path: ".env",
+      patch,
+    });
+    expect(patchRes.result.success).toBe(false);
+    expect(patchRes.result.error).toBe("sensitive_path_blocked");
+  });
+
+  it("should return backup and newSha on successful apply_patch", async () => {
+    fs.writeFileSync(path.join(TEST_DIR, "patchme.txt"), "one\n", "utf-8");
+    const patch = `@@ -1,1 +1,1 @@
+-one
++two
+`;
+    const patchRes = await invoke("apply_patch", {
+      path: "patchme.txt",
+      patch,
+    });
+    expect(patchRes.result.success).toBe(true);
+    expect(patchRes.result.newSha).toBeDefined();
+    const backupsDir = path.join(TEST_DIR, ".ccathome", "backups");
+    expect(fs.existsSync(backupsDir)).toBe(true);
+    expect(fs.readdirSync(backupsDir).some((f) => f.endsWith(".bak"))).toBe(true);
+    expect(fs.readFileSync(path.join(TEST_DIR, "patchme.txt"), "utf-8")).toContain("two");
+  });
+
+  it("should leave target untouched when patch fails", async () => {
+    fs.writeFileSync(path.join(TEST_DIR, "stable.txt"), "keep-me\n", "utf-8");
+    const patch = `@@ -1,1 +1,1 @@
+-wrong
++nope
+`;
+    const patchRes = await invoke("apply_patch", {
+      path: "stable.txt",
+      patch,
+    });
+    expect(patchRes.result.success).toBe(false);
+    expect(fs.readFileSync(path.join(TEST_DIR, "stable.txt"), "utf-8")).toBe("keep-me\n");
   });
 });

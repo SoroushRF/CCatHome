@@ -66,4 +66,17 @@ describe("Unified Diff Patch Applier", () => {
     const hunks = parsePatch(patch);
     expect(() => applyPatchToContent(original, hunks)).toThrow("Mismatch at line 2");
   });
+
+  it("should keep hunk open across no-newline markers", () => {
+    const patch = `@@ -1,2 +1,2 @@
+-hello
++hello world
+ coding
+\\ No newline at end of file
+`;
+    const hunks = parsePatch(patch);
+    expect(hunks.length).toBe(1);
+    expect(hunks[0].lines.some((l) => l.includes("hello world"))).toBe(true);
+    expect(hunks[0].lines.some((l) => l.includes("coding"))).toBe(true);
+  });
 });

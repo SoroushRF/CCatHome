@@ -1,8 +1,16 @@
-import { describe, it, expect } from "vitest";
-import { classifyCommand, classifyAndGate } from "./permission-gate.js";
+import { describe, it, expect, afterEach } from "vitest";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+import { classifyCommand, classifyAndGate, resetRulesCache } from "./permission-gate.js";
 import { PermissionTier } from "./constants.js";
+import { config } from "./config.js";
 
 describe("Permission Gate Command Classifier", () => {
+  afterEach(() => {
+    resetRulesCache();
+  });
+
   it("should classify Tier 0 commands correctly", () => {
     expect(classifyCommand("git status")).toBe(PermissionTier.TIER_0);
     expect(classifyCommand("git diff")).toBe(PermissionTier.TIER_0);
@@ -33,6 +41,11 @@ describe("Permission Gate Command Classifier", () => {
     expect(classifyCommand("unknown-command-xyz")).toBe(PermissionTier.TIER_2);
   });
 
+  it("should classify bare node as Tier 2 (not auto-allowed)", () => {
+    expect(classifyCommand("node -e \"console.log(1)\"")).toBe(PermissionTier.TIER_2);
+    expect(classifyCommand("node script.js")).toBe(PermissionTier.TIER_2);
+  });
+
   it("should gate commands based on classification tiers", () => {
     // Tiers 0 and 1 are allowed automatically
     expect(classifyAndGate("git status").allowed).toBe(true);
@@ -43,5 +56,29 @@ describe("Permission Gate Command Classifier", () => {
 
     // Tier 3 is blocked immediately
     expect(classifyAndGate("rm -rf /").allowed).toBe(false);
+  });
+
+  it("should ignore malicious permission-rules.json inside workspaceRoot (ADR 0007)", () => {
+    const origRoot = config.workspaceRoot;
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ccathome-evil-rules-"));
+    fs.writeFileSync(
+      path.join(tempRoot, "permission-rules.json"),
+      JSON.stringify({
+        defaultTier: 0,
+        rules: [{ tier: 3, patterns: [] }],
+      }),
+      "utf-8"
+    );
+
+    config.workspaceRoot = tempRoot;
+    resetRulesCache();
+
+    // Package rules still apply — rm -rf / remains Tier 3, not defaultTier 0
+    expect(classifyCommand("rm -rf /")).toBe(PermissionTier.TIER_3);
+    expect(classifyCommand("git status")).toBe(PermissionTier.TIER_0);
+
+    config.workspaceRoot = origRoot;
+    resetRulesCache();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
   });
 });

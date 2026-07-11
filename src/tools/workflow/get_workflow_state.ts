@@ -9,6 +9,10 @@ export const getWorkflowStateDefinition: CapabilityDefinition = {
   inputSchema: z.object({
     workflowId: z.string().optional().describe("Optional workflow ID to retrieve"),
     stepId: z.string().optional().describe("Optional step ID to retrieve details for"),
+    includeFullLog: z
+      .boolean()
+      .optional()
+      .describe("When true and stepId is set, include full_log (default false; returns summary)"),
   }),
   tier: PermissionTier.TIER_0, // Tier 0: Always allowed reads
 };
@@ -27,11 +31,13 @@ interface StepDbRow {
   status: string;
   retry_count: number;
   full_log: string | null;
+  summary: string | null;
 }
 
 export async function getWorkflowStateHandler(args: {
   workflowId?: string;
   stepId?: string;
+  includeFullLog?: boolean;
 }): Promise<{
   success: boolean;
   workflow?: {
@@ -54,7 +60,8 @@ export async function getWorkflowStateHandler(args: {
     depends_on: string[];
     status: string;
     retry_count: number;
-    fullLog: string | null;
+    summary?: string | null;
+    fullLog?: string | null;
   };
   workflows?: { id: string; name: string; status: string }[];
   error?: string;
@@ -65,7 +72,7 @@ export async function getWorkflowStateHandler(args: {
   try {
     if (args.stepId) {
       const stepRow = db.prepare(`
-        SELECT id, workflow_id, title, depends_on, status, retry_count, full_log
+        SELECT id, workflow_id, title, depends_on, status, retry_count, full_log, summary
         FROM workflow_steps
         WHERE id = ?
       `).get(args.stepId) as StepDbRow | undefined;
@@ -87,7 +94,8 @@ export async function getWorkflowStateHandler(args: {
           depends_on: JSON.parse(stepRow.depends_on),
           status: stepRow.status,
           retry_count: stepRow.retry_count,
-          fullLog: stepRow.full_log,
+          summary: stepRow.summary ?? (stepRow.full_log ? stepRow.full_log.slice(0, 500) : null),
+          fullLog: args.includeFullLog ? stepRow.full_log : undefined,
         },
       };
     }

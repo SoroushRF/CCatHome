@@ -118,6 +118,22 @@ describe("Workflow DAG Engine Suite", () => {
     expect(res.result.reason).toContain("cycles");
   });
 
+  it("should reject duplicate step IDs within a workflow", async () => {
+    const dupSteps = [
+      { id: "stepA", title: "First A" },
+      { id: "stepA", title: "Second A" },
+    ];
+
+    const res = await invoke("create_workflow", {
+      name: "Duplicate IDs",
+      steps: dupSteps,
+    });
+
+    expect(res.result.success).toBe(false);
+    expect(res.result.error).toBe("invalid_workflow");
+    expect(res.result.reason).toContain("Duplicate step id");
+  });
+
   it("should reject step dependency on missing step ID", async () => {
     const brokenSteps = [
       { id: "stepA", title: "Step A", depends_on: ["missing_step"] },

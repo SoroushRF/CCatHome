@@ -4,6 +4,7 @@ import { z } from "zod";
 import { PermissionTier, CapabilityName } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
 import { config } from "../../core/config.js";
+import { resolveSafePath } from "../../core/path-utils.js";
 
 export const expandLogDefinition: CapabilityDefinition = {
   name: CapabilityName.EXPAND_LOG,
@@ -16,6 +17,8 @@ export const expandLogDefinition: CapabilityDefinition = {
   tier: PermissionTier.TIER_0, // Tier 0: Always allowed reads
 };
 
+const HEX_LOG_ID = /^[a-f0-9]+$/i;
+
 export async function expandLogHandler(args: {
   logId: string;
   fromLine?: number;
@@ -27,7 +30,27 @@ export async function expandLogHandler(args: {
   error?: string;
   reason?: string;
 }> {
-  const logPath = path.join(config.workspaceRoot, ".ccathome", "logs", `cmd_${args.logId}.log`);
+  if (!HEX_LOG_ID.test(args.logId)) {
+    return {
+      success: false,
+      error: "invalid_log_id",
+      reason: "logId must be a hexadecimal string",
+    };
+  }
+
+  let logPath: string;
+  try {
+    logPath = resolveSafePath(
+      config.workspaceRoot,
+      path.join(".ccathome", "logs", `cmd_${args.logId}.log`)
+    );
+  } catch (err: any) {
+    return {
+      success: false,
+      error: "invalid_path",
+      reason: err.message,
+    };
+  }
 
   if (!fs.existsSync(logPath)) {
     return {

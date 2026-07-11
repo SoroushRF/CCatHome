@@ -59,4 +59,10 @@ describe("Symlink Path Containment Verification Suite (Finding #8)", () => {
     const resolved = resolveSafePath(WORKSPACE_DIR, "safe.txt");
     expect(resolved).toBe(path.join(WORKSPACE_DIR, "safe.txt"));
   });
+
+  it("should allow ..hidden filenames but block ../ traversal", () => {
+    fs.writeFileSync(path.join(WORKSPACE_DIR, "..hidden"), "ok", "utf-8");
+    expect(resolveSafePath(WORKSPACE_DIR, "..hidden")).toBe(path.join(WORKSPACE_DIR, "..hidden"));
+    expect(() => resolveSafePath(WORKSPACE_DIR, "../outside/secrets.txt")).toThrow(/path_traversal_detected/);
+  });
 });

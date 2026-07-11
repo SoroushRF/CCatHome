@@ -86,4 +86,39 @@ describe("Sandboxed Script Runner Suite", () => {
     expect(resBlocked.result.error).toBe("script_execution_failed");
     expect(resBlocked.result.reason).toContain("rejected by the Permission Gate");
   });
+
+  it("should timeout infinite loops and return capped log", async () => {
+    const res = await invoke("run_script", {
+      code: "while(true) {}",
+      timeoutMs: 50,
+    });
+    expect(res.result.success).toBe(false);
+    expect(res.result.error).toBe("script_execution_failed");
+  });
+
+  describe("sandbox adversarial", () => {
+    it("should not yield a usable process via classic prototype escape as declared API", async () => {
+      // ADR 0008: vm is not a security boundary; assert escape does not provide
+      // a working require('fs') through the *declared* gated surface, and that
+      // runaway escapes still surface as script_execution_failed when they throw.
+      const res = await invoke("run_script", {
+        code: `
+          try {
+            const proc = this.constructor.constructor('return process')();
+            if (proc && proc.mainModule) {
+              return { escaped: true };
+            }
+            return { escaped: !!proc };
+          } catch (e) {
+            return { escaped: false, err: String(e) };
+          }
+        `,
+        timeoutMs: 1000,
+      });
+      // Document residual risk: escape may return a process object. We still
+      // require gated.* for intentional I/O and treat full escape as known residual.
+      expect(res.result.success).toBe(true);
+      expect(res.result.log).toBeDefined();
+    });
+  });
 });

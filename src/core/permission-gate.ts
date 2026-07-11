@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
 import { fileURLToPath } from "url";
-import { PermissionTier } from "./constants.js";
+import { PermissionTier, ConfirmationStatus } from "./constants.js";
 import { getDb } from "./db.js";
 import { config } from "./config.js";
 
@@ -32,25 +32,28 @@ interface RulesConfig {
 
 let cachedConfig: RulesConfig | null = null;
 
+/** Test-only: clear cached rules so the next classify reloads from disk. */
+export function resetRulesCache(): void {
+  cachedConfig = null;
+}
+
 function loadRulesConfig(): RulesConfig {
   if (cachedConfig) {
     return cachedConfig;
   }
 
-  // Define potential locations to resolve permission-rules.json
+  // ADR 0007: never load permission-rules.json from the target workspace.
+  // Only trust the server package / install path (and cwd as last-resort package root).
   const pathsToTry: string[] = [];
 
-  if (config.workspaceRoot) {
-    pathsToTry.push(path.resolve(config.workspaceRoot, "permission-rules.json"));
-  }
-  pathsToTry.push(path.resolve(process.cwd(), "permission-rules.json"));
-  
   try {
     const currentDir = path.dirname(fileURLToPath(import.meta.url));
     pathsToTry.push(path.resolve(currentDir, "../../permission-rules.json"));
   } catch (_e) {
     // Ignore in non-ESM/test contexts
   }
+
+  pathsToTry.push(path.resolve(process.cwd(), "permission-rules.json"));
 
   for (const rootPath of pathsToTry) {
     try {
@@ -84,8 +87,39 @@ function loadRulesConfig(): RulesConfig {
  * Rules are checked from highest tier (Tier 3 - blocked) to lowest (Tier 0 - always allowed).
  * If a command matches a pattern in a tier, that tier is returned.
  * If no rules match, the defaultTier (Tier 2) is returned.
+ *
+ * Shell chaining: if a Tier 0/1 match is only via an anchored safe prefix but the
+ * command contains shell metacharacters (; & | ` $() newlines), escalate by
+ * re-classifying each segment and taking the max (at least Tier 2).
  */
 export function classifyCommand(command: string): PermissionTier {
+  const trimmed = command.trim();
+  const baseTier = classifyCommandRaw(trimmed);
+
+  if (baseTier <= PermissionTier.TIER_1 && hasShellMetacharacters(trimmed)) {
+    const segments = trimmed
+      .split(/(?:&&|\|\||[;&\n])/)
+      .map((s) => s.trim().replace(/^\|+\s*/, ""))
+      .filter(Boolean);
+
+    let maxTier = PermissionTier.TIER_2;
+    for (const seg of segments) {
+      maxTier = Math.max(maxTier, classifyCommandRaw(seg)) as PermissionTier;
+    }
+    // Also classify full string against Tier 3-only in raw path already handled per segment
+    return maxTier;
+  }
+
+  return baseTier;
+}
+
+const SHELL_META_RE = /[;&|`\n]|\$\(/;
+
+function hasShellMetacharacters(command: string): boolean {
+  return SHELL_META_RE.test(command);
+}
+
+function classifyCommandRaw(command: string): PermissionTier {
   const configObj = loadRulesConfig();
   const trimmed = command.trim();
 
@@ -129,7 +163,7 @@ export function classifyAndGate(command: string): { allowed: boolean; tier: Perm
       // Wrap checks and insertions inside a single transaction to prevent SELECT-then-INSERT races
       db.transaction(() => {
         // Check if this command has been approved for the active step
-        let query = "SELECT status FROM pending_confirmations WHERE command = ?";
+        let query = "SELECT id, status FROM pending_confirmations WHERE command = ?";
         const queryParams: any[] = [command];
 
         if (config.activeStepId) {
@@ -141,20 +175,24 @@ export function classifyAndGate(command: string): { allowed: boolean; tier: Perm
 
         query += " ORDER BY created_at DESC LIMIT 1";
 
-        const existing = db.prepare(query).get(...queryParams) as { status: string } | undefined;
+        const existing = db.prepare(query).get(...queryParams) as
+          | { id: string; status: string }
+          | undefined;
 
-        if (existing && existing.status === "approved") {
+        if (existing && existing.status === ConfirmationStatus.APPROVED) {
+          // Single-use: consume approval so a second identical command needs a new grant
+          db.prepare("DELETE FROM pending_confirmations WHERE id = ?").run(existing.id);
           allowed = true;
           return;
         }
 
         // If not approved and not already pending, insert a pending confirmation record
-        if (!existing || existing.status === "rejected") {
+        if (!existing || existing.status === ConfirmationStatus.REJECTED) {
           const id = crypto.randomUUID();
           db.prepare(`
             INSERT INTO pending_confirmations (id, step_id, command, status)
-            VALUES (?, ?, ?, 'pending')
-          `).run(id, config.activeStepId || null, command);
+            VALUES (?, ?, ?, ?)
+          `).run(id, config.activeStepId || null, command, ConfirmationStatus.PENDING);
         }
       })();
 

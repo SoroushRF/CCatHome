@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAllCapabilities } from "./core/bootstrap.js";
 import { getAllCapabilities } from "./core/router.js";
-import { TIER_A_TOOLS } from "./core/dispatcher.js";
+import { TIER_A_TOOLS, TIER_A_BUDGET } from "./core/dispatcher.js";
 
 describe("Stdio MCP Server Configuration & Binding Suite (Step 3.5 E2E)", () => {
   let server: McpServer;
@@ -43,9 +43,11 @@ describe("Stdio MCP Server Configuration & Binding Suite (Step 3.5 E2E)", () => 
     const registered = (server as any)._registeredTools;
     expect(registered).toBeDefined();
 
-    // Total Tier A tools in constants.ts (12 tools)
+    // Total Tier A tools — single source of truth (ADR 0004)
     const expectedTierA = Array.from(TIER_A_TOOLS);
-    expect(expectedTierA.length).toBe(12);
+    expect(TIER_A_TOOLS.size).toBe(TIER_A_BUDGET);
+    expect(expectedTierA.length).toBe(TIER_A_BUDGET);
+    expect(TIER_A_TOOLS.size).toBeLessThanOrEqual(TIER_A_BUDGET);
 
     for (const toolName of expectedTierA) {
       expect(registered[toolName]).toBeDefined();

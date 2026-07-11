@@ -16,9 +16,6 @@
         "^eslint",
         "^prettier",
         "^git rev-parse\\b",
-        "^npm i\\b",
-        "^npm install\\b",
-        "^npm ci\\b",
         "^read_file\\b"
       ]
     },
@@ -34,13 +31,12 @@
         "^npm run dev$",
         "^tsup",
         "^tsc",
-        "^node\\b",
         "^git init$",
         "^git config\\b",
-        "^git checkout\\b",
-        "^git reset\\b",
         "^git branch\\b",
-        "^write_file\\b"
+        "^write_file\\b",
+        "^git checkout -b\\s+",
+        "^git checkout\\s+[^-]"
       ]
     },
     {
@@ -56,7 +52,10 @@
         "^git checkout\\s+--",
         "^git checkout\\s+\\.",
         "^git reset\\s+--hard",
-        "^git clean\\b"
+        "^git clean\\b",
+        "^npm i\\b",
+        "^npm install\\b",
+        "^npm ci\\b"
       ]
     },
     {
@@ -73,7 +72,11 @@
         "write_file.*\\.git/hooks",
         "write_file.*\\.env",
         "write_file.*permission-rules\\.json",
-        "write_file.*\\.sqlite"
+        "write_file.*\\.sqlite",
+        "\\|\\s*/bin/(ba)?sh\\b",
+        "\\|\\s*/usr/bin/(ba)?sh\\b",
+        "curl\\b.*\\|",
+        "wget\\b.*\\|"
       ]
     }
   ],

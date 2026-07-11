@@ -6,10 +6,13 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsup",
+    "start": "node dist/index.js",
+    "dev": "npm run build && node dist/index.js",
     "test": "vitest run",
-    "lint": "eslint \"src/**/*.ts\" && node scripts/lint-gate-bypass.js",
+    "lint": "eslint \"src/**/*.ts\" && node scripts/lint-gate-bypass.js && node scripts/lint-no-magic-status.js",
     "format": "prettier --write \"src/**/*.ts\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "format:check": "prettier --check \"src/**/*.ts\""
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.1",
