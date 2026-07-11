@@ -23,6 +23,14 @@ export interface DashboardStartResult {
   token: string;
 }
 
+function timingSafeTokenEquals(provided: string | undefined, expected: string | null): boolean {
+  if (!provided || !expected) return false;
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
 const HTML_CONTENT = `
 <!DOCTYPE html>
 <html lang="en">
@@ -144,7 +152,16 @@ const HTML_CONTENT = `
     };
     evSource.onmessage = (event) => updateUI(JSON.parse(event.data));
 
-    async function resolveConfirmation(id, action) {
+    async function resolveConfirmation(id, action, answerText) {
+      if (action === 'answer') {
+        await fetch('/api/confirmations/' + encodeURIComponent(id) + '/answer', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ answer: answerText || '' }),
+        });
+        return;
+      }
       await fetch('/api/confirmations/' + encodeURIComponent(id) + '/' + action, {
         method: 'POST',
         credentials: 'same-origin',
@@ -190,16 +207,35 @@ const HTML_CONTENT = `
         meta.textContent = (c.type || 'permission') + (c.step_id ? (' · step ' + c.step_id) : '');
         const actions = document.createElement('div');
         actions.className = 'hitl-actions';
-        const approveBtn = document.createElement('button');
-        approveBtn.className = 'btn btn-approve';
-        approveBtn.textContent = 'Approve';
-        approveBtn.onclick = () => resolveConfirmation(c.id, 'approve');
-        const rejectBtn = document.createElement('button');
-        rejectBtn.className = 'btn btn-reject';
-        rejectBtn.textContent = 'Reject';
-        rejectBtn.onclick = () => resolveConfirmation(c.id, 'reject');
-        actions.appendChild(approveBtn);
-        actions.appendChild(rejectBtn);
+        if (c.type === 'clarification') {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.placeholder = 'Your answer';
+          input.style.flex = '1';
+          input.style.minWidth = '120px';
+          input.style.background = 'var(--bg)';
+          input.style.color = 'var(--text)';
+          input.style.border = '1px solid var(--border)';
+          input.style.borderRadius = '6px';
+          input.style.padding = '0.35rem 0.5rem';
+          const submitBtn = document.createElement('button');
+          submitBtn.className = 'btn btn-approve';
+          submitBtn.textContent = 'Submit';
+          submitBtn.onclick = () => resolveConfirmation(c.id, 'answer', input.value);
+          actions.appendChild(input);
+          actions.appendChild(submitBtn);
+        } else {
+          const approveBtn = document.createElement('button');
+          approveBtn.className = 'btn btn-approve';
+          approveBtn.textContent = 'Approve';
+          approveBtn.onclick = () => resolveConfirmation(c.id, 'approve');
+          const rejectBtn = document.createElement('button');
+          rejectBtn.className = 'btn btn-reject';
+          rejectBtn.textContent = 'Reject';
+          rejectBtn.onclick = () => resolveConfirmation(c.id, 'reject');
+          actions.appendChild(approveBtn);
+          actions.appendChild(rejectBtn);
+        }
         item.appendChild(cmd);
         item.appendChild(meta);
         item.appendChild(actions);
@@ -342,7 +378,8 @@ export function startDashboardServer(port = 3141): Promise<DashboardStartResult>
       const cookies = parseCookies(req.headers.cookie);
       const cookieToken = cookies["ccathome_token"];
       const isAuthenticated =
-        (queryToken && queryToken === activeToken) || (cookieToken && cookieToken === activeToken);
+        timingSafeTokenEquals(queryToken, activeToken) ||
+        timingSafeTokenEquals(cookieToken, activeToken);
 
       if (!isAuthenticated) {
         res.writeHead(401, { "Content-Type": "text/plain" });
@@ -350,7 +387,7 @@ export function startDashboardServer(port = 3141): Promise<DashboardStartResult>
         return;
       }
 
-      if (queryToken && queryToken === activeToken) {
+      if (timingSafeTokenEquals(queryToken, activeToken)) {
         res.setHeader(
           "Set-Cookie",
           `ccathome_token=${activeToken}; HttpOnly; Path=/; SameSite=Strict`,
@@ -363,6 +400,36 @@ export function startDashboardServer(port = 3141): Promise<DashboardStartResult>
       ) {
         res.writeHead(200, { "Content-Type": "text/html" });
         res.end(HTML_CONTENT);
+        return;
+      }
+
+      const answerMatch = parsedUrl.pathname.match(/^\/api\/confirmations\/([^/]+)\/answer$/);
+      if (req.method === "POST" && answerMatch) {
+        const id = decodeURIComponent(answerMatch[1]);
+        let body = "";
+        req.on("data", (chunk) => {
+          body += chunk;
+          if (body.length > 4096) {
+            req.destroy();
+          }
+        });
+        req.on("end", () => {
+          let answer = "";
+          try {
+            const parsed = JSON.parse(body || "{}") as { answer?: string };
+            answer = typeof parsed.answer === "string" ? parsed.answer.slice(0, 2000) : "";
+          } catch {
+            answer = "";
+          }
+          if (!answer.trim()) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ success: false, error: "empty_answer" }));
+            return;
+          }
+          const result = resolvePendingConfirmation(id, ConfirmationStatus.APPROVED, answer);
+          res.writeHead(result.success ? 200 : 400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(result));
+        });
         return;
       }
 
