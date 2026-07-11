@@ -276,6 +276,35 @@ describe("Execute Step Compound Loop Suite", () => {
     expect(stepRow.full_log).toContain("Attempt failed and max retries (2) reached.");
   });
 
+  it("should interpret maxRetries:0 as a single attempt with no recovery", async () => {
+    saveWorkflow("wf-mr0", "MaxRetries Zero", [{ id: "stepMR0", title: "Once" }]);
+    fs.writeFileSync(path.join(TEST_DIR, "exec.js"), "console.log('x');", "utf-8");
+    fs.writeFileSync(path.join(TEST_DIR, "check.js"), "process.exit(1);", "utf-8");
+    fs.writeFileSync(path.join(TEST_DIR, "recover.js"), "process.exit(0);", "utf-8");
+
+    approveCommandForTests("node exec.js", "stepMR0");
+    approveCommandForTests("node check.js", "stepMR0");
+    approveCommandForTests("node recover.js", "stepMR0");
+    const res = await invoke("execute_step", {
+      workflowId: "wf-mr0",
+      stepId: "stepMR0",
+      executionCommand: "node exec.js",
+      validationCommand: "node check.js",
+      maxRetries: 0,
+      recoveryCommand: "node recover.js",
+    });
+
+    expect(res.result.success).toBe(false);
+    expect(res.result.retryCount).toBe(0);
+    const db = getDb();
+    const stepRow = db
+      .prepare("SELECT full_log FROM workflow_steps WHERE id = 'stepMR0'")
+      .get() as { full_log: string };
+    expect(stepRow.full_log).toContain("=== Attempt 1 ===");
+    expect(stepRow.full_log).not.toContain("=== Attempt 2 ===");
+    expect(stepRow.full_log).not.toContain("Running recovery command");
+  });
+
   it("should abort retries when recoveryCommand exits nonzero", async () => {
     saveWorkflow("wf-rec-fail", "Recovery Fail", [{ id: "stepRecFail", title: "Recover" }]);
     fs.writeFileSync(path.join(TEST_DIR, "exec.js"), "console.log('run');", "utf-8");

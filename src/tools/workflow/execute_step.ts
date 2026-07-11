@@ -26,7 +26,7 @@ export const executeStepDefinition: CapabilityDefinition = {
     stepId: z.string().describe("The ID of the step to execute"),
     executionCommand: z.string().describe("The command to run to execute the step"),
     validationCommand: z.string().describe("The command to run to validate if the step succeeded"),
-    maxRetries: z.number().default(3).describe("Maximum number of retry/recovery attempts"),
+    maxRetries: z.number().default(3).describe("Max recovery attempts after the initial try (0 = single attempt, no recovery)"),
     recoveryCommand: z.string().optional().describe("Optional recovery command to run after restoring checkpoint and before retrying"),
   }),
   tier: PermissionTier.TIER_1, // Tier 1: Workspace writes / edits

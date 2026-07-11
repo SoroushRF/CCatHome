@@ -10,7 +10,7 @@ Executes a workflow step using an auto-fix micro-loop with checkpointing, valida
   stepId: z.string().describe("The ID of the step to execute"),
   executionCommand: z.string().describe("The command to run to execute the step"),
   validationCommand: z.string().describe("The command to run to validate if the step succeeded"),
-  maxRetries: z.number().default(3).describe("Maximum number of retry/recovery attempts"),
+  maxRetries: z.number().default(3).describe("Max recovery attempts after the initial try (0 = single attempt, no recovery)"),
   recoveryCommand: z.string().optional().describe("Optional recovery command to run after restoring checkpoint and before retrying")
 }
 ```
@@ -33,6 +33,14 @@ Executes a workflow step using an auto-fix micro-loop with checkpointing, valida
 - **`dependencies_unmet`**: If the step is not DAG-runnable (pending with incomplete dependencies), or a retry/resume is attempted while dependencies are incomplete.
 - **`requires_confirmation`**: If execution/validation/recovery commands trigger confirmation pause.
 - Returns `{ success: false, status: "failed" }` if validation fails after all retry attempts are exhausted.
+
+## `maxRetries` semantics
+
+- `maxRetries: 0` → one execution attempt; no recovery cycle.
+- `maxRetries: N` → one initial attempt plus up to `N` recovery cycles (at most `N + 1` executions).
+- `retryCount` in the result is the number of failed attempts before success or final failure (0 on first-try success).
+
+Success requires **both** `executionCommand` and `validationCommand` to exit 0. A nonzero `recoveryCommand` exit aborts further retries.
 
 ---
 
