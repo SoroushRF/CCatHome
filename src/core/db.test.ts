@@ -46,6 +46,14 @@ describe("Database & Migrations Suite", () => {
     const migrationLog = logStmt.get("0001-init.sql");
     expect(migrationLog).toBeDefined();
 
+    expect(logStmt.get("0003-workflow-step-composite.sql")).toBeDefined();
+    const idx = db
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_workflow_steps_workflow_id_id'"
+      )
+      .get() as { name: string } | undefined;
+    expect(idx?.name).toBe("idx_workflow_steps_workflow_id_id");
+
     // 2. Test insert and query on workflows table
     db.prepare("INSERT INTO workflows (id, name, status) VALUES (?, ?, 'pending')").run("wf1", "Test Workflow");
     const wf = db.prepare("SELECT name FROM workflows WHERE id = ?").get("wf1") as { name: string } | undefined;
