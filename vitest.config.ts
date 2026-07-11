@@ -20,6 +20,7 @@ export default defineConfig({
       reporter: ["text", "lcov"],
       include: ["src/core/**/*.ts", "src/tools/**/*.ts"],
       exclude: ["src/**/*.test.ts", "src/test/**", "src/benchmarks/**", "src/security/**"],
+      // R7.5.2: start realistic; ratchet upward after more suites land
       thresholds: {
         lines: 70,
         functions: 65,
