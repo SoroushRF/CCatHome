@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
 import { z } from "zod";
-import { PermissionTier, CapabilityName } from "../../core/constants.js";
+import { PermissionTier, CapabilityName, StepStatus } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
 import { classifyAndGate } from "../../core/permission-gate.js";
 import { config } from "../../core/config.js";
@@ -49,7 +49,7 @@ export async function runCommandHandler(args: {
     }
     return {
       success: false,
-      error: "requires_confirmation",
+      error: StepStatus.REQUIRES_CONFIRMATION,
       reason: "Command is classified as Tier 2 and requires approval",
     };
   }

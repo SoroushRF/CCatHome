@@ -20,7 +20,7 @@ export const askUserDefinition: CapabilityDefinition = {
     options: z.array(z.string()).optional().describe("Optional list of choices for clarification"),
     command: z.string().optional().describe("The Tier 2 command requiring confirmation"),
     risk: z.string().optional().describe("The associated risk description of running the command"),
-    response: z.string().optional().describe("The user's response or approval ('approved' or 'rejected')"),
+    response: z.string().optional().describe("The user's response or approval (approved or rejected)"),
   }),
   tier: PermissionTier.TIER_0, // Tier 0: allowed so the agent can ask questions, and user can respond
 };
@@ -82,7 +82,7 @@ export async function askUserHandler(args: {
         return {
           success: false,
           error: "invalid_response",
-          reason: "Response must be either 'approved' or 'rejected'",
+          reason: `Response must be either '${ConfirmationStatus.APPROVED}' or '${ConfirmationStatus.REJECTED}'`,
         };
       }
 
