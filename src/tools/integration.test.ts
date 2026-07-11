@@ -276,6 +276,13 @@ describe("Phase 2 Integration Gate (End-to-End)", () => {
     expect(execStepRes.result.success).toBe(true);
     expect(execStepRes.result.status).toBe("completed");
     expect(execStepRes.result.retryCount).toBe(1); // validation failed on attempt 1, succeeded on attempt 2 after recovery!
+    expect(execStepRes.result.summary).toBeDefined();
+    expect(execStepRes.result.logId).toMatch(/^[a-f0-9]+$/);
+
+    const branch = await runCommandGated("git branch --show-current");
+    expect(branch.stdout.trim()).toBe(`ccathome/${workflowId}`);
+    const autoMsg = await runCommandGated("git log -n 1 --pretty=format:%s");
+    expect(autoMsg.stdout.trim()).toBe("[ccathome-auto] step stepB completed");
 
     // Verify DB states: workflow completed
     const stepRow = db.prepare("SELECT status, retry_count, full_log FROM workflow_steps WHERE id = 'stepB'").get() as any;
