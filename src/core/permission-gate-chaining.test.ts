@@ -53,4 +53,13 @@ describe("Permission Gate Security Hardening Suite (Findings #1, #2, #4)", () =>
     // Tier 3 still wins when present mid-chain
     expect(classifyCommand("git status; rm -rf /")).toBe(PermissionTier.TIER_3);
   });
+
+  it("should escalate Tier 0/1 when redirection or env expansion is present", () => {
+    // ../ traversal in the redirect target is Tier 3 (blocked)
+    expect(classifyCommand("git status > ../../outside.txt")).toBe(PermissionTier.TIER_3);
+    expect(classifyCommand("git diff >> /tmp/out")).toBe(PermissionTier.TIER_2);
+    expect(classifyCommand("npm test >$HOME/pwned")).toBe(PermissionTier.TIER_2);
+    expect(classifyCommand("git status > ${HOME}/escape")).toBe(PermissionTier.TIER_2);
+    expect(classifyCommand("git log < /etc/passwd")).toBe(PermissionTier.TIER_2);
+  });
 });

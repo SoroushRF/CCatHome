@@ -90,35 +90,80 @@ function loadRulesConfig(): RulesConfig {
  * If a command matches a pattern in a tier, that tier is returned.
  * If no rules match, the defaultTier (Tier 2) is returned.
  *
- * Shell chaining: if a Tier 0/1 match is only via an anchored safe prefix but the
- * command contains shell metacharacters (; & | ` $() newlines), escalate by
- * re-classifying each segment and taking the max (at least Tier 2).
+ * Shell chaining / redirection / expansion: if a Tier 0/1 match is only via an
+ * anchored safe prefix but the command contains shell metacharacters
+ * (; & | ` $() ${} $VAR newlines, or > < redirects), escalate by re-classifying
+ * each segment and taking the max (at least Tier 2). Bare redirection / env
+ * expansion without a second command segment still escalates to Tier 2 so
+ * workspace-escape writes cannot ride on Tier 0 prefixes.
  */
 export function classifyCommand(command: string): PermissionTier {
   const trimmed = command.trim();
   const baseTier = classifyCommandRaw(trimmed);
 
   if (baseTier <= PermissionTier.TIER_1 && hasShellMetacharacters(trimmed)) {
-    const segments = trimmed
-      .split(/(?:&&|\|\||[;&\n])/)
-      .map((s) => s.trim().replace(/^\|+\s*/, ""))
-      .filter(Boolean);
+    // Redirection or env expansion alone is enough to leave Tier 0/1 —
+    // there may be no second "segment" to reclassify.
+    if (hasShellRedirection(trimmed) || hasEnvExpansion(trimmed)) {
+      const segments = splitShellSegments(trimmed);
+      let maxTier = PermissionTier.TIER_2;
+      for (const seg of segments) {
+        // Strip redirect/env tokens so remaining argv can still hit Tier 3 rules
+        const stripped = seg
+          .replace(/(?:>>?|<<?)\s*[^\s;|&]+/g, " ")
+          .replace(/\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*/g, " ")
+          .trim();
+        if (stripped) {
+          maxTier = Math.max(maxTier, classifyCommandRaw(stripped)) as PermissionTier;
+        }
+      }
+      return Math.max(maxTier, classifyCommandRaw(trimmed)) as PermissionTier;
+    }
 
+    const segments = splitShellSegments(trimmed);
     let maxTier = PermissionTier.TIER_2;
     for (const seg of segments) {
       maxTier = Math.max(maxTier, classifyCommandRaw(seg)) as PermissionTier;
     }
-    // Also classify full string against Tier 3-only in raw path already handled per segment
     return maxTier;
   }
 
   return baseTier;
 }
 
-const SHELL_META_RE = /[;&|`\n]|\$\(/;
+/** Classic chain / substitution metacharacters. */
+const SHELL_CHAIN_META_RE = /[;&|`\n]|\$\(/;
+/** File redirection operators (not comparison in isolation — used with shell:true). */
+const SHELL_REDIRECT_RE = /(?:^|[^>])>{1,2}(?:[^>]|$)|(?:^|[^<])<{1,2}(?:[^<]|$)/;
+/** Env / parameter expansion that can inject paths outside the workspace. */
+const SHELL_ENV_EXPAND_RE = /\$\{[A-Za-z_][A-Za-z0-9_]*\}|\$[A-Za-z_][A-Za-z0-9_]*/;
+
+function hasShellRedirection(command: string): boolean {
+  return SHELL_REDIRECT_RE.test(command);
+}
+
+function hasEnvExpansion(command: string): boolean {
+  return SHELL_ENV_EXPAND_RE.test(command);
+}
 
 function hasShellMetacharacters(command: string): boolean {
-  return SHELL_META_RE.test(command);
+  return (
+    SHELL_CHAIN_META_RE.test(command) ||
+    hasShellRedirection(command) ||
+    hasEnvExpansion(command)
+  );
+}
+
+function splitShellSegments(command: string): string[] {
+  return command
+    .split(/(?:&&|\|\||[;&\n])/)
+    .map((s) => s.trim().replace(/^\|+\s*/, ""))
+    .filter(Boolean);
+}
+
+/** Exported for adversarial / unit tests. */
+export function commandHasShellMetacharacters(command: string): boolean {
+  return hasShellMetacharacters(command);
 }
 
 function classifyCommandRaw(command: string): PermissionTier {
