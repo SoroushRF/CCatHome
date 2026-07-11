@@ -5,6 +5,7 @@ import { PermissionTier, CapabilityName } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
 import { resolveSafePath } from "../../core/path-utils.js";
 import { config } from "../../core/config.js";
+import { outlineSource } from "../../core/context-manager.js";
 
 export const readFileDefinition: CapabilityDefinition = {
   name: CapabilityName.READ_FILE,
@@ -66,17 +67,7 @@ export async function readFileHandler(args: {
     };
   }
 
-  // Generate Outline for large files
-  const outlineLines: string[] = [];
-  const declarationRegex = /^(import|export|class|function|interface|const\s+\w+|let\s+\w+|type\s+\w+|enum\s+\w+)/;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (declarationRegex.test(line)) {
-      outlineLines.push(`Line ${i + 1}: ${lines[i]}`);
-    }
-  }
-
+  // Generate Outline for large files via context-manager
   const fileId = crypto.createHash("md5").update(content).digest("hex");
 
   return {
@@ -84,6 +75,6 @@ export async function readFileHandler(args: {
     truncated: true,
     fileId,
     totalLines: lines.length,
-    outline: outlineLines.join("\n"),
+    outline: outlineSource(content, 80),
   };
 }
