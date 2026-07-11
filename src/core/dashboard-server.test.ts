@@ -34,11 +34,13 @@ describe("Local HTTP SSE Dashboard Server Authentication (Finding #13)", () => {
   });
 
   it("should enforce token checks and serve HTML/SSE only when authenticated", async () => {
-    const port = 3143;
-    const { server, token } = await startDashboardServer(port);
+    const { server, token } = await startDashboardServer(0);
     expect(server).toBeDefined();
     expect(token).toBeDefined();
     expect((server as any).token).toBe(token);
+    const addr = server.address();
+    if (!addr || typeof addr === "string") throw new Error("expected TCP address");
+    const port = addr.port;
 
     const indexResUnauth = await fetch(`http://localhost:${port}/`);
     expect(indexResUnauth.status).toBe(401);
@@ -64,8 +66,10 @@ describe("Local HTTP SSE Dashboard Server Authentication (Finding #13)", () => {
   });
 
   it("should approve pending confirmations via authenticated POST API", async () => {
-    const port = 3144;
-    const { token } = await startDashboardServer(port);
+    const { server, token } = await startDashboardServer(0);
+    const addr = server.address();
+    if (!addr || typeof addr === "string") throw new Error("expected TCP address");
+    const port = addr.port;
     const id = crypto.randomUUID();
     getDb()
       .prepare(
