@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { PermissionTier, CapabilityName } from "../../core/constants.js";
+import { PermissionTier, CapabilityName, CommandStatus } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
 import { getProcess, removeProcess } from "../../core/process-registry.js";
+import { getDb } from "../../core/db.js";
 
 export const killProcessDefinition: CapabilityDefinition = {
   name: CapabilityName.KILL_PROCESS,
@@ -31,6 +32,13 @@ export async function killProcessHandler(args: {
   try {
     activeProc.process.kill("SIGKILL");
     removeProcess(args.pid);
+    try {
+      getDb()
+        .prepare(`UPDATE command_log SET status = ? WHERE pid = ?`)
+        .run(CommandStatus.KILLED, args.pid);
+    } catch {
+      // ignore missing table / row
+    }
     return { success: true };
   } catch (err: any) {
     return {

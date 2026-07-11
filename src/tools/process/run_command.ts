@@ -3,12 +3,14 @@ import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
 import { z } from "zod";
-import { PermissionTier, CapabilityName, StepStatus } from "../../core/constants.js";
+import { PermissionTier, CapabilityName, StepStatus, CommandStatus } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
 import { classifyAndGate } from "../../core/permission-gate.js";
 import { config } from "../../core/config.js";
 import { registerProcess } from "../../core/process-registry.js";
 import { scrubEnv } from "../../core/scrub-env.js";
+import { tailLines } from "../../core/context-manager.js";
+import { getDb } from "../../core/db.js";
 
 export const runCommandDefinition: CapabilityDefinition = {
   name: CapabilityName.RUN_COMMAND,
@@ -124,11 +126,19 @@ export async function runCommandHandler(args: {
         logStream.end(() => resolveEnd());
       });
 
-    const getCappedOutput = (arr: string[]) => {
-      const full = arr.join("");
-      const lines = full.split(/\r?\n/);
-      if (lines.length <= 20) return full;
-      return `... (truncated ${lines.length - 20} lines) ...\n` + lines.slice(-20).join("\n");
+    const getCappedOutput = (arr: string[]) => tailLines(arr.join(""), 20);
+
+    const upsertCommandLog = (status: string, pid?: number) => {
+      try {
+        const db = getDb();
+        db.prepare(`
+          INSERT INTO command_log (id, pid, log_path, status)
+          VALUES (?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET pid = excluded.pid, status = excluded.status
+        `).run(logId, pid ?? null, logPath, status);
+      } catch {
+        // DB optional in early tests
+      }
     };
 
     // Prefer 'close' over 'exit' so all stdio 'data' events are delivered first
@@ -139,6 +149,7 @@ export async function runCommandHandler(args: {
       void endLogStream().then(() => {
         if (!resolved) {
           resolved = true;
+          upsertCommandLog(CommandStatus.EXITED, child.pid);
           resolve({
             success: true,
             status: "exited",
@@ -182,10 +193,12 @@ export async function runCommandHandler(args: {
               startedAt: new Date(),
             };
             registerProcess(child.pid!, activeProc);
+            upsertCommandLog(CommandStatus.READY, child.pid);
             resolve({
               success: true,
               pid: child.pid,
               status: "ready",
+              logId,
               logPath,
               recentOutput: getCappedOutput(stdoutLines),
             });
@@ -208,10 +221,12 @@ export async function runCommandHandler(args: {
           startedAt: new Date(),
         };
         registerProcess(child.pid!, activeProc);
+        upsertCommandLog(CommandStatus.RUNNING, child.pid);
         resolve({
           success: true,
           pid: child.pid,
           status: "timeout",
+          logId,
           logPath,
           recentOutput: getCappedOutput(stdoutLines),
         });
