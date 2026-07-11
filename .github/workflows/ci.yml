@@ -64,3 +64,15 @@ jobs:
     - run: npm ci
     - name: Prettier check
       run: npm run format:check
+
+  smoke-readme:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+    - run: npm ci
+    - name: README setup smoke
+      run: ./scripts/smoke-readme.sh

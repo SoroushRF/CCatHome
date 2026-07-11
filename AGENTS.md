@@ -110,7 +110,7 @@ here, in the same PR).
    failure mode and its payload shape.
 3. Implement behind the Permission Gate (no direct execution path).
 4. Add the tool to the Tier A count check in CI (`TIER_A_BUDGET` in
-   `src/tools/registry.test.ts` — currently 12; see PRD §8).
+   `src/index.test.ts` / `TIER_A_BUDGET` in `src/core/dispatcher.ts` — currently 12; see PRD §8).
 5. Update `CHANGELOG.md` with a `minor` version bump.
 
 ### 2.2 Adding a new Tier B (dispatcher-routed) capability

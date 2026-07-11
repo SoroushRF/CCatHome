@@ -1,6 +1,8 @@
-# Capability: `checkpoint` (Tier B)
+# Capability: `checkpoint` (engine-internal)
 
-Snapshots git HEAD + dirty/untracked files (including directories) for restore.
+Snapshots git HEAD + dirty/untracked files for restore. **Not registered** for
+agent `invoke` / `list_capabilities` (ADR 0010). `execute_step` calls the
+handler directly.
 
 ## Input Schema
 
@@ -16,8 +18,10 @@ Snapshots git HEAD + dirty/untracked files (including directories) for restore.
 
 ## Failure Contract
 
-- **`git_failed`**, **`checkpoint_failed`**.
+- **`git_failed`**: `git rev-parse` / `git status` argv failed.
+- **`checkpoint_failed`**: unexpected exception.
 
 ## Changelog
 
 - 2026-07-11: Aligned with remediation R6 code/docs honesty pass.
+- 2026-07-11: Un-registered from Tier B; uses `runArgvUngated`.

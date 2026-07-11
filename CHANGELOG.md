@@ -7,8 +7,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ## [Unreleased]
 
+### Security
+- Escalate Tier 0/1 commands that use shell redirection (`>`, `>>`, `<`) or env expansion (`$VAR`, `${VAR}`).
+- Demote general `git config` to Tier 2; block alias/hooksPath/sshCommand/editor/pager as Tier 3.
+- Restrict auto `git checkout` to `ccathome/` isolation branches; other checkouts require confirmation.
+- Anchor `vitest`/`eslint`/`prettier`/`tsc`/`git log`/`git show`; block `$()` and backticks as Tier 3.
+- Un-register `checkpoint` / `restore_checkpoint` from agent invoke (ADR 0010); argv-only ungated restore.
+- Never load `permission-rules.json` from cwd when it equals the target workspace (ADR 0007).
+- Expand `scrubEnv` denylist (`DATABASE_URL`, `PRIVATE_KEY`, …).
+- Dashboard token compare uses `timingSafeEqual`; clarification answers via `answer_text`.
+
+### Fixed
+- `run_script` no longer double-consumes single-use Tier 2 approvals.
+- Dispatcher capability Tier 2 now consumes APPROVED confirmations (single-use).
+- `run_command` returns `success: false` on nonzero exit.
+- `execute_step` caps `maxRetries` at 10.
+- `ask_user` clarification poll returns free-text `answer_text`.
+
+### Added
+- Migration `0006-confirmation-answer.sql`.
+- `runArgvUngated` process-runner helper.
+- Tests: open_project, scrubEnv, adversarial redirection/git-config, expanded failure contracts.
+
 ### Notes
-- Post-2.1.0 work tracked here.
+- Post-2.1.0 security hardening from independent quality audit.
 
 ---
 
