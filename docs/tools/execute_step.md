@@ -30,6 +30,7 @@ Executes a workflow step using an auto-fix micro-loop with checkpointing, valida
 ## Failure Contract
 
 - **`step_not_found`**: If the specified step ID does not exist in the workflow.
+- **`dependencies_unmet`**: If the step is not DAG-runnable (pending with incomplete dependencies), or a retry/resume is attempted while dependencies are incomplete.
 - **`requires_confirmation`**: If execution/validation/recovery commands trigger confirmation pause.
 - Returns `{ success: false, status: "failed" }` if validation fails after all retry attempts are exhausted.
 

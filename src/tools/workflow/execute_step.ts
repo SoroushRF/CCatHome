@@ -12,6 +12,10 @@ import { checkpointHandler } from "../checkpoint/checkpoint.js";
 import { restoreCheckpointHandler } from "../checkpoint/restore_checkpoint.js";
 import { config } from "../../core/config.js";
 import { RequiresConfirmationError } from "../../core/permission-gate.js";
+import {
+  areStepDependenciesMet,
+  getRunnableSteps,
+} from "../../core/workflow-engine.js";
 
 export const executeStepDefinition: CapabilityDefinition = {
   name: CapabilityName.EXECUTE_STEP,
@@ -67,6 +71,40 @@ export async function executeStepHandler(args: {
       success: true,
       status: StepStatus.COMPLETED,
       retryCount: step.retry_count,
+    };
+  }
+
+  // DAG readiness: pending steps must be runnable; retries/resumes need deps completed.
+  const pendingRunnable = getRunnableSteps(args.workflowId).includes(args.stepId);
+  const retryOrResume =
+    step.status === StepStatus.REQUIRES_CONFIRMATION ||
+    step.status === StepStatus.FAILED ||
+    step.status === StepStatus.RUNNING;
+
+  if (step.status === StepStatus.PENDING && !pendingRunnable) {
+    return {
+      success: false,
+      error: "dependencies_unmet",
+      reason: `Step '${args.stepId}' is not runnable; unmet dependencies`,
+    };
+  }
+
+  if (retryOrResume && !areStepDependenciesMet(args.workflowId, args.stepId)) {
+    return {
+      success: false,
+      error: "dependencies_unmet",
+      reason: `Step '${args.stepId}' dependencies are not completed`,
+    };
+  }
+
+  if (
+    step.status !== StepStatus.PENDING &&
+    !retryOrResume
+  ) {
+    return {
+      success: false,
+      error: "dependencies_unmet",
+      reason: `Step '${args.stepId}' status '${step.status}' is not executable`,
     };
   }
 

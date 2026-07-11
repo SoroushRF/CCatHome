@@ -144,6 +144,36 @@ describe("Execute Step Compound Loop Suite", () => {
     expect(stepRow.full_log).toContain("Validation Exit Code: 0");
   });
 
+  it("should refuse steps whose DAG dependencies are unmet", async () => {
+    saveWorkflow("wf-dag", "DAG Guard", [
+      { id: "root", title: "Root" },
+      { id: "child", title: "Child", depends_on: ["root"] },
+    ]);
+
+    fs.writeFileSync(path.join(TEST_DIR, "exec.js"), "console.log('noop');", "utf-8");
+    fs.writeFileSync(path.join(TEST_DIR, "check.js"), "process.exit(0);", "utf-8");
+
+    approveCommandForTests("node exec.js", "child");
+    approveCommandForTests("node check.js", "child");
+    const res = await invoke("execute_step", {
+      workflowId: "wf-dag",
+      stepId: "child",
+      executionCommand: "node exec.js",
+      validationCommand: "node check.js",
+      maxRetries: 0,
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.result.success).toBe(false);
+    expect(res.result.error).toBe("dependencies_unmet");
+
+    const db = getDb();
+    const stepRow = db
+      .prepare("SELECT status FROM workflow_steps WHERE id = 'child'")
+      .get() as { status: string };
+    expect(stepRow.status).toBe("pending");
+  });
+
   it("should fail step and record log when max retries exceeded", async () => {
     const steps = [{ id: "step3", title: "Deploy application" }];
     saveWorkflow("wf3", "Deploy Workflow", steps);

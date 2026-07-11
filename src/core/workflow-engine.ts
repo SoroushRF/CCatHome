@@ -13,7 +13,12 @@ export interface WorkflowStepInput {
  */
 export function validateWorkflowDAG(steps: WorkflowStepInput[]): void {
   const stepMap = new Map<string, WorkflowStepInput>();
+  const seen = new Set<string>();
   for (const s of steps) {
+    if (seen.has(s.id)) {
+      throw new Error(`Duplicate step id '${s.id}' in workflow`);
+    }
+    seen.add(s.id);
     stepMap.set(s.id, s);
   }
 
@@ -95,6 +100,32 @@ export function saveWorkflow(
 }
 
 /**
+ * Returns whether all declared dependencies of a step are completed.
+ */
+export function areStepDependenciesMet(workflowId: string, stepId: string): boolean {
+  const db = getDb();
+  const step = db
+    .prepare(`SELECT depends_on FROM workflow_steps WHERE id = ? AND workflow_id = ?`)
+    .get(stepId, workflowId) as { depends_on: string } | undefined;
+  if (!step) {
+    return false;
+  }
+
+  const deps = JSON.parse(step.depends_on || "[]") as string[];
+  if (deps.length === 0) {
+    return true;
+  }
+
+  const completed = db
+    .prepare(
+      `SELECT id FROM workflow_steps WHERE workflow_id = ? AND status = ?`
+    )
+    .all(workflowId, StepStatus.COMPLETED) as { id: string }[];
+  const completedIds = new Set(completed.map((s) => s.id));
+  return deps.every((dep) => completedIds.has(dep));
+}
+
+/**
  * Returns the list of step IDs that are currently ready to execute
  * (status is pending and all dependencies are completed).
  */
@@ -116,7 +147,7 @@ export function getRunnableSteps(workflowId: string): string[] {
       continue;
     }
 
-    const deps = JSON.parse(s.depends_on) as string[];
+    const deps = JSON.parse(s.depends_on || "[]") as string[];
     const allDepsMet = deps.every((dep) => completed.has(dep));
     if (allDepsMet) {
       runnable.push(s.id);

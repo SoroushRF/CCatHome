@@ -222,7 +222,19 @@ describe("Phase 2 Integration Gate (End-to-End)", () => {
     const workflowId = wfRes.result.workflowId;
     expect(workflowId).toBeDefined();
 
-    // 3. Complete Step A directly in database to unlock Step B
+    // 3. Blocked dependent step must fail with dependencies_unmet before Step A completes
+    const blockedRes = await invoke("execute_step", {
+      workflowId,
+      stepId: "stepB",
+      executionCommand: "node -e \"console.log('should not run')\"",
+      validationCommand: "node -e \"process.exit(0)\"",
+      maxRetries: 0,
+    });
+    expect(blockedRes.success).toBe(true);
+    expect(blockedRes.result.success).toBe(false);
+    expect(blockedRes.result.error).toBe("dependencies_unmet");
+
+    // Complete Step A to unlock Step B (setup for recovery path below)
     const db = getDb();
     db.prepare("UPDATE workflow_steps SET status = 'completed' WHERE id = 'stepA'").run();
 
