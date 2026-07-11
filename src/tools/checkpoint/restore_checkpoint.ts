@@ -3,18 +3,24 @@ import * as path from "path";
 import { z } from "zod";
 import { PermissionTier, CapabilityName } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
-import { runCommandUngated } from "../../core/process-runner.js";
+import { runArgvUngated } from "../../core/process-runner.js";
 import { getDb } from "../../core/db.js";
 import { config } from "../../core/config.js";
 import { resolveSafePath } from "../../core/path-utils.js";
+import { assertSafeGitRef } from "../../core/git-utils.js";
 
+/**
+ * Engine-internal restore. Not registered for agent invoke (ADR 0010).
+ * Definition retained for documentation / direct-handler tests only.
+ */
 export const restoreCheckpointDefinition: CapabilityDefinition = {
   name: CapabilityName.RESTORE_CHECKPOINT,
-  description: "Restores the workspace git and file state to a previously saved checkpoint.",
+  description:
+    "Internal: restores workspace git and file state to a checkpoint. Not agent-callable.",
   inputSchema: z.object({
     checkpointId: z.string().describe("The ID of the checkpoint to restore"),
   }),
-  tier: PermissionTier.TIER_1, // Tier 1: Workspace writes / edits
+  tier: PermissionTier.TIER_1,
 };
 
 interface CheckpointDbRow {
@@ -32,7 +38,6 @@ export async function restoreCheckpointHandler(args: { checkpointId: string }): 
   const db = getDb();
 
   try {
-    // 1. Retrieve checkpoint metadata
     const row = db
       .prepare(
         `
@@ -52,6 +57,16 @@ export async function restoreCheckpointHandler(args: { checkpointId: string }): 
     }
 
     const gitSha = row.git_sha;
+    try {
+      assertSafeGitRef(gitSha, "sha");
+    } catch (err: any) {
+      return {
+        success: false,
+        error: "invalid_git_sha",
+        reason: err.message,
+      };
+    }
+
     const backupMeta = JSON.parse(row.backup_meta) as {
       originalPath: string;
       backupPath: string;
@@ -59,8 +74,8 @@ export async function restoreCheckpointHandler(args: { checkpointId: string }): 
       isDeleted: boolean;
     }[];
 
-    // 2. Hard reset git to the saved SHA
-    const resetRes = await runCommandUngated(`git reset --hard ${gitSha}`);
+    // Argv-only ungated reset/clean — no shell interpolation (ADR 0010)
+    const resetRes = await runArgvUngated("git", ["reset", "--hard", gitSha]);
     if (resetRes.exitCode !== 0) {
       return {
         success: false,
@@ -69,8 +84,16 @@ export async function restoreCheckpointHandler(args: { checkpointId: string }): 
       };
     }
 
-    // 3. Clean untracked files, excluding system metadata and skills folders
-    const cleanRes = await runCommandUngated("git clean -fd -e .ccathome -e .agents -e .agent");
+    const cleanRes = await runArgvUngated("git", [
+      "clean",
+      "-fd",
+      "-e",
+      ".ccathome",
+      "-e",
+      ".agents",
+      "-e",
+      ".agent",
+    ]);
     if (cleanRes.exitCode !== 0) {
       return {
         success: false,
@@ -79,13 +102,11 @@ export async function restoreCheckpointHandler(args: { checkpointId: string }): 
       };
     }
 
-    // 4. Restore files recorded in backup metadata
     for (const item of backupMeta) {
       let targetPath: string;
       try {
         targetPath = resolveSafePath(config.workspaceRoot, item.originalPath);
       } catch (_err) {
-        // Skip paths escaping workspace root
         continue;
       }
 
@@ -94,7 +115,16 @@ export async function restoreCheckpointHandler(args: { checkpointId: string }): 
           fs.rmSync(targetPath, { force: true });
         }
       } else {
-        const backupFullPath = path.join(config.workspaceRoot, item.backupPath);
+        let backupFullPath: string;
+        try {
+          backupFullPath = resolveSafePath(config.workspaceRoot, item.backupPath);
+        } catch (_err) {
+          return {
+            success: false,
+            error: "backup_path_escape",
+            reason: `Backup path escapes workspace: '${item.backupPath}'`,
+          };
+        }
         if (!fs.existsSync(backupFullPath)) {
           return {
             success: false,
