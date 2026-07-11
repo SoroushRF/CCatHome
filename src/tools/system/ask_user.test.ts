@@ -16,7 +16,10 @@ import { approveCommandForTests } from "../../test/approve-command.js";
 const TEST_DIR = path.resolve(process.cwd(), "temp_ask_user_test");
 
 describe("Human-in-the-Loop Confirmation Suite (Step 3.2)", () => {
+  const PREV_TOKEN = process.env.CCATHOME_APPROVAL_TOKEN;
+
   beforeEach(async () => {
+    process.env.CCATHOME_APPROVAL_TOKEN = "test-approval-secret";
     clearRegistry();
     config.workspaceRoot = TEST_DIR;
 
@@ -49,6 +52,11 @@ describe("Human-in-the-Loop Confirmation Suite (Step 3.2)", () => {
   });
 
   afterEach(() => {
+    if (PREV_TOKEN === undefined) {
+      delete process.env.CCATHOME_APPROVAL_TOKEN;
+    } else {
+      process.env.CCATHOME_APPROVAL_TOKEN = PREV_TOKEN;
+    }
     closeDb();
     if (fs.existsSync(TEST_DIR)) {
       try {
@@ -58,6 +66,29 @@ describe("Human-in-the-Loop Confirmation Suite (Step 3.2)", () => {
       }
     }
     config.workspaceRoot = process.cwd();
+  });
+
+  it("should reject naked response approval without approvalToken", async () => {
+    const wfRes = await invoke("create_workflow", {
+      name: "Self-approve blocked",
+      steps: [{ id: "stepA", title: "Push" }],
+    });
+    const workflowId = wfRes.result.workflowId;
+    await invoke("execute_step", {
+      workflowId,
+      stepId: "stepA",
+      executionCommand: "git push",
+      validationCommand: "true",
+      maxRetries: 0,
+    });
+
+    const denied = await invoke("ask_user", {
+      type: "permission",
+      command: "git push",
+      response: "approved",
+    });
+    expect(denied.result.success).toBe(false);
+    expect(denied.result.error).toBe("approval_token_required");
   });
 
   it("should pause workflow execution when encountering a Tier 2 command, and resume on approval", async () => {
@@ -100,12 +131,15 @@ describe("Human-in-the-Loop Confirmation Suite (Step 3.2)", () => {
     expect(confirmation.command).toBe("git push");
     expect(confirmation.status).toBe("pending");
 
-    // 5. Approve the command via ask_user
+    // 5. Approve the command via ask_user with secret (ADR 0009)
+    config.activeStepId = "stepA";
     const approvalRes = await invoke("ask_user", {
       type: "permission",
       command: "git push",
-      response: "approved"
+      response: "approved",
+      approvalToken: "test-approval-secret",
     });
+    config.activeStepId = undefined;
     expect(approvalRes.success).toBe(true);
     expect(approvalRes.result.success).toBe(true);
 

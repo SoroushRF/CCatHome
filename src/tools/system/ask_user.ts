@@ -8,6 +8,7 @@ import {
 import { CapabilityDefinition } from "../../core/router.js";
 import { getDb } from "../../core/db.js";
 import { config } from "../../core/config.js";
+import { matchesApprovalSecret } from "../../core/approval-token.js";
 
 import * as crypto from "crypto";
 
@@ -21,6 +22,10 @@ export const askUserDefinition: CapabilityDefinition = {
     command: z.string().optional().describe("The Tier 2 command requiring confirmation"),
     risk: z.string().optional().describe("The associated risk description of running the command"),
     response: z.string().optional().describe("The user's response or approval (approved or rejected)"),
+    approvalToken: z
+      .string()
+      .optional()
+      .describe("Secret matching CCATHOME_APPROVAL_TOKEN required to mutate confirmation state over MCP"),
   }),
   tier: PermissionTier.TIER_0, // Tier 0: allowed so the agent can ask questions, and user can respond
 };
@@ -32,6 +37,7 @@ export async function askUserHandler(args: {
   command?: string;
   risk?: string;
   response?: string;
+  approvalToken?: string;
 }): Promise<{
   success: boolean;
   response?: string;
@@ -49,10 +55,17 @@ export async function askUserHandler(args: {
       };
     }
 
-    // Find pending confirmation matching this command
-    const query =
-      "SELECT id, step_id, status FROM pending_confirmations WHERE command = ? AND status = ? ORDER BY created_at DESC LIMIT 1";
-    const queryParams: any[] = [args.command, ConfirmationStatus.PENDING];
+    // Find pending confirmation matching this command, scoped by active step
+    let query =
+      "SELECT id, step_id, status FROM pending_confirmations WHERE command = ? AND status = ?";
+    const queryParams: (string | null)[] = [args.command, ConfirmationStatus.PENDING];
+    if (config.activeStepId) {
+      query += " AND step_id = ?";
+      queryParams.push(config.activeStepId);
+    } else {
+      query += " AND step_id IS NULL";
+    }
+    query += " ORDER BY created_at DESC LIMIT 1";
 
     let pending = db.prepare(query).get(...queryParams) as
       | { id: string; step_id: string | null; status: string }
@@ -73,8 +86,17 @@ export async function askUserHandler(args: {
       };
     }
 
-    // If response is provided, resolve immediately (e.g. called from Dashboard/CLI)
+    // Mutating response requires approval secret (ADR 0009) — agents cannot self-approve
     if (args.response) {
+      if (!matchesApprovalSecret(args.approvalToken)) {
+        return {
+          success: false,
+          error: "approval_token_required",
+          reason:
+            "Mutating confirmation state via ask_user requires approvalToken matching CCATHOME_APPROVAL_TOKEN",
+        };
+      }
+
       if (
         args.response !== ConfirmationStatus.APPROVED &&
         args.response !== ConfirmationStatus.REJECTED
@@ -113,7 +135,9 @@ export async function askUserHandler(args: {
     if (args.risk) {
       console.error(`[RISK] ${args.risk}`);
     }
-    console.error(`Please approve this request in the dashboard (http://localhost:3141) or database.`);
+    console.error(
+      `Please approve this request in the dashboard (token URL printed at server startup) or via ask_user with approvalToken.`
+    );
 
     const checkInterval = 1000; // 1s
     const timeout = 60000; // 60s timeout
@@ -139,9 +163,25 @@ export async function askUserHandler(args: {
     };
   }
 
-  // Clarification flow
+  // Clarification flow — wait for dashboard/secret resolution (R4.3.5 expands persistence)
+  if (args.response) {
+    if (!matchesApprovalSecret(args.approvalToken)) {
+      return {
+        success: false,
+        error: "approval_token_required",
+        reason:
+          "Providing a clarification response via ask_user requires approvalToken matching CCATHOME_APPROVAL_TOKEN",
+      };
+    }
+    return {
+      success: true,
+      response: args.response,
+    };
+  }
+
   return {
-    success: true,
-    response: args.response || "No response received",
+    success: false,
+    error: "awaiting_user",
+    reason: "Clarification pending dashboard or secret-backed response",
   };
 }
