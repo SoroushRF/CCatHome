@@ -8,6 +8,7 @@ import { CapabilityDefinition } from "../../core/router.js";
 import { classifyAndGate } from "../../core/permission-gate.js";
 import { config } from "../../core/config.js";
 import { registerProcess } from "../../core/process-registry.js";
+import { scrubEnv } from "../../core/scrub-env.js";
 
 export const runCommandDefinition: CapabilityDefinition = {
   name: CapabilityName.RUN_COMMAND,
@@ -76,7 +77,7 @@ export async function runCommandHandler(args: {
   const child = child_process.spawn(command, {
     shell: true,
     cwd: config.workspaceRoot,
-    env: { ...process.env, PAGER: "cat" },
+    env: scrubEnv(process.env),
   });
 
   const stdoutLines: string[] = [];

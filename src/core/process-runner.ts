@@ -2,6 +2,7 @@ import * as child_process from "child_process";
 import { classifyAndGate, RequiresConfirmationError } from "./permission-gate.js";
 import { config } from "./config.js";
 import { PermissionTier } from "./constants.js";
+import { scrubEnv } from "./scrub-env.js";
 
 export interface GatedRunResult {
   stdout: string;
@@ -18,7 +19,7 @@ export async function runCommandUngated(command: string): Promise<GatedRunResult
     const child = child_process.spawn(command, {
       shell: true,
       cwd: config.workspaceRoot,
-      env: { ...process.env, PAGER: "cat" },
+      env: scrubEnv(process.env),
     });
 
     const stdoutChunks: string[] = [];
