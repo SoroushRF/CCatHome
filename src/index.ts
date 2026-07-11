@@ -14,7 +14,11 @@ export async function main() {
   // Support specifying custom workspace root via argv or env
   const customWorkspace = process.argv[2] || process.env.WORKSPACE_ROOT;
   if (customWorkspace) {
-    config.workspaceRoot = path.resolve(customWorkspace);
+    const resolved = path.resolve(customWorkspace);
+    config.workspaceRoot = resolved;
+    config.initialWorkspaceRoot = resolved;
+  } else {
+    config.initialWorkspaceRoot = config.workspaceRoot;
   }
 
   // 1. Bootstrap all tools
