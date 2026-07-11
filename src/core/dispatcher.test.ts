@@ -101,7 +101,6 @@ describe("Dispatcher & Router Skeleton", () => {
   it("should execute Tier 2 capability after a single-use approval is granted", async () => {
     const { getDb, closeDb } = await import("./db.js");
     const { config } = await import("./config.js");
-    const { ConfirmationStatus } = await import("./constants.js");
     const { approveCommandForTests } = await import("../test/approve-command.js");
     closeDb();
     config.activeStepId = null;

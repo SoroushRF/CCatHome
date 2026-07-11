@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { scrubEnv } from "./scrub-env.js";
 
 describe("scrubEnv", () => {

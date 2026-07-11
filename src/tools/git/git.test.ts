@@ -118,20 +118,25 @@ describe("Git Capabilities Suite", () => {
   });
 
   it("should branch and checkout successfully", async () => {
-    // Create branch
-    const branchRes = await invoke("git_branch", { name: "feature-test" });
+    // Isolation policy: auto-allowed checkouts stay under ccathome/
+    const branchRes = await invoke("git_branch", { name: "ccathome/feature-test" });
     expect(branchRes.success).toBe(true);
 
-    // List branches
     const listRes = await invoke("git_branch", { list: true });
     expect(listRes.success).toBe(true);
-    expect(listRes.result.branches).toContain("feature-test");
+    expect(listRes.result.branches).toContain("ccathome/feature-test");
 
-    // Checkout branch
-    const checkoutRes = await invoke("git_checkout", { branch: "feature-test" });
-    expect(checkoutRes.success).toBe(true);
+    const checkoutRes = await invoke("git_checkout", { branch: "ccathome/feature-test" });
+    expect(checkoutRes.result.success).toBe(true);
 
     const showRes = await runCommandGated("git branch --show-current");
-    expect(showRes.stdout.trim()).toBe("feature-test");
+    expect(showRes.stdout.trim()).toBe("ccathome/feature-test");
+  });
+
+  it("requires confirmation to checkout outside ccathome/", async () => {
+    await invoke("git_branch", { name: "feature-outside" });
+    const checkoutRes = await invoke("git_checkout", { branch: "feature-outside" });
+    expect(checkoutRes.result.success).toBe(false);
+    expect(checkoutRes.result.error).toBe("requires_confirmation");
   });
 });

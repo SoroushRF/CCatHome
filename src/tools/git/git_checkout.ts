@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { PermissionTier, CapabilityName } from "../../core/constants.js";
+import { PermissionTier, CapabilityName, StepStatus } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
 import { assertSafeGitRef, runGit } from "../../core/git-utils.js";
+import { RequiresConfirmationError } from "../../core/permission-gate.js";
 
 export const gitCheckoutDefinition: CapabilityDefinition = {
   name: CapabilityName.GIT_CHECKOUT,
@@ -31,6 +32,13 @@ export async function gitCheckoutHandler(args: { branch: string; create?: boolea
     }
     return { success: true };
   } catch (err: any) {
+    if (err instanceof RequiresConfirmationError) {
+      return {
+        success: false,
+        error: StepStatus.REQUIRES_CONFIRMATION,
+        reason: err.message,
+      };
+    }
     return {
       success: false,
       error: "execution_failed",

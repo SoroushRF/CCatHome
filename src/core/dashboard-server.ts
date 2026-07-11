@@ -23,7 +23,10 @@ export interface DashboardStartResult {
   token: string;
 }
 
-function timingSafeTokenEquals(provided: string | undefined, expected: string | null): boolean {
+function timingSafeTokenEquals(
+  provided: string | undefined | null,
+  expected: string | null,
+): boolean {
   if (!provided || !expected) return false;
   const a = Buffer.from(provided);
   const b = Buffer.from(expected);
