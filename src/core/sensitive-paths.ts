@@ -1,10 +1,5 @@
 import * as path from "path";
 
-const SENSITIVE_SUFFIXES = [
-  path.normalize(`${path.sep}.env`),
-  path.normalize(`${path.sep}permission-rules.json`),
-];
-
 /**
  * Throws if absPath targets sensitive workspace files that must not be
  * overwritten via apply_patch / move_file / run_script writeFile.

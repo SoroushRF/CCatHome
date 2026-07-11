@@ -1,8 +1,11 @@
 import * as fs from "fs";
+import * as path from "path";
 import { z } from "zod";
 import { PermissionTier, CapabilityName } from "../../core/constants.js";
 import { CapabilityDefinition } from "../../core/router.js";
 import { getProcess } from "../../core/process-registry.js";
+import { config } from "../../core/config.js";
+import { resolveSafePath } from "../../core/path-utils.js";
 
 export const readProcessOutputDefinition: CapabilityDefinition = {
   name: CapabilityName.READ_PROCESS_OUTPUT,
@@ -36,6 +39,16 @@ export async function readProcessOutputHandler(args: {
   }
 
   const logPath = activeProc.logPath;
+  try {
+    const rel = path.relative(config.workspaceRoot, logPath);
+    resolveSafePath(config.workspaceRoot, rel);
+  } catch (err: any) {
+    return {
+      success: false,
+      error: "invalid_path",
+      reason: err.message,
+    };
+  }
   if (!fs.existsSync(logPath)) {
     return {
       success: false,

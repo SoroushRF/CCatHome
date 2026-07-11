@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { config } from "./config.js";
 import { classifyAndGate } from "./permission-gate.js";
-import { PermissionTier } from "./constants.js";
+import { PermissionTier, StepStatus } from "./constants.js";
 
 export type RetargetResult =
   | { ok: true; absolutePath: string }
@@ -67,7 +67,7 @@ export function prepareWorkspaceRetarget(userPath: string): RetargetResult {
       }
       return {
         ok: false,
-        error: "requires_confirmation",
+        error: StepStatus.REQUIRES_CONFIRMATION,
         reason: `Retargeting outside allowed workspace tree requires confirmation: ${realTarget}`,
       };
     }
