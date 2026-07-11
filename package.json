@@ -13,7 +13,9 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
     "format:check": "prettier --check \"src/**/*.ts\"",
-    "benchmark:v1": "node scripts/run-benchmark-task.mjs"
+    "benchmark:v1": "node scripts/run-benchmark-task.mjs",
+    "coverage": "vitest run --coverage",
+    "test:adversarial": "vitest run src/security"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.1",
@@ -25,6 +27,7 @@
     "@types/node": "^20.14.9",
     "@typescript-eslint/eslint-plugin": "^7.14.1",
     "@typescript-eslint/parser": "^7.14.1",
+    "@vitest/coverage-v8": "^1.6.0",
     "eslint": "^8.57.0",
     "prettier": "^3.3.2",
     "tsup": "^8.1.0",

@@ -15,5 +15,17 @@ export default defineConfig({
         singleThread: true,
       },
     },
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcov"],
+      include: ["src/core/**/*.ts", "src/tools/**/*.ts"],
+      exclude: ["src/**/*.test.ts", "src/test/**", "src/benchmarks/**", "src/security/**"],
+      thresholds: {
+        lines: 70,
+        functions: 65,
+        statements: 70,
+        branches: 55,
+      },
+    },
   },
 });
