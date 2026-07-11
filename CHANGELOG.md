@@ -8,10 +8,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ## [Unreleased]
 
 ### Notes
-- Remediation Phases R0–R5 landed on `main`; R6–R7 docs/test/release track in progress (`docs/plans/REMEDIATION_TO_90.md`).
-- Historical `[2.0.0]` bullets annotated where superseded by Unreleased remediation entries.
+- Post-2.1.0 work tracked here.
+
+---
+
+## [2.1.0] - 2026-07-11
+
+### Notes
+- Remediation Phases R0–R7 (`docs/plans/REMEDIATION_TO_90.md`). Package aligned with PRD doc version 2.1.0.
+- Historical `[2.0.0]` bullets annotated where superseded by 2.1.0 remediation entries.
 
 ### Added
+- Adversarial security suite under `src/security/` and CI `adversarial` job.
+- Benchmark harness `npm run benchmark:v1` (`scripts/run-benchmark-task.*`, `src/benchmarks/`).
+- Coverage gate (`@vitest/coverage-v8`) and `scripts/lint-no-secrets.js`.
+- README smoke script `scripts/smoke-readme.sh`.
+- Test isolation helpers (`resetDbForTests`, `CCATHOME_DB_PATH`, vitest setup).
+
 - Migration `0003-workflow-step-composite.sql`: unique index on `workflow_steps(workflow_id, id)`.
 - Migration `0004-step-summary.sql`: `workflow_steps.summary` column for truncated model-facing logs.
 - Migration `0005-confirmation-type.sql`: confirmation `type`/`question` for clarification HITL.

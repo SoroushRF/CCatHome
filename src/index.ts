@@ -27,7 +27,7 @@ export async function main() {
   // 2. Initialize McpServer
   const server = new McpServer({
     name: "ccathome-server",
-    version: "1.0.0",
+    version: "2.1.0",
   });
 
   // 3. Register Tier A capabilities as MCP tools
